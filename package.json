@@ -1,0 +1,129 @@
+{
+  "name": "@stocksharp/trading-controls",
+  "version": "0.1.0",
+  "description": "Browser trading controls for StockSharp: order blotters, positions, trade history, watchlist and trade feed, each built against one host port and rendering its own DOM.",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": {
+    "name": "StockSharp Platform LLC",
+    "url": "https://stocksharp.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StockSharp/TradingControls.git"
+  },
+  "homepage": "https://github.com/StockSharp/TradingControls#readme",
+  "bugs": {
+    "url": "https://github.com/StockSharp/TradingControls/issues"
+  },
+  "keywords": [
+    "stocksharp",
+    "trading",
+    "terminal",
+    "blotter",
+    "positions",
+    "orders",
+    "watchlist",
+    "market-data",
+    "typescript",
+    "dom"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/esm/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "unpkg": "./dist/sstradingcontrols.js",
+  "jsdelivr": "./dist/sstradingcontrols.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./trading-host": {
+      "types": "./dist/types/trading-host.d.ts",
+      "import": "./dist/esm/trading-host.js"
+    },
+    "./control-types": {
+      "types": "./dist/types/control-types.d.ts",
+      "import": "./dist/esm/control-types.js"
+    },
+    "./formatters": {
+      "types": "./dist/types/formatters.d.ts",
+      "import": "./dist/esm/formatters.js"
+    },
+    "./dom": {
+      "types": "./dist/types/dom.d.ts",
+      "import": "./dist/esm/dom.js"
+    },
+    "./positions-widget": {
+      "types": "./dist/types/positions-widget.d.ts",
+      "import": "./dist/esm/positions-widget.js"
+    },
+    "./trade-history-widget": {
+      "types": "./dist/types/trade-history-widget.d.ts",
+      "import": "./dist/esm/trade-history-widget.js"
+    },
+    "./active-orders-widget": {
+      "types": "./dist/types/active-orders-widget.d.ts",
+      "import": "./dist/esm/active-orders-widget.js"
+    },
+    "./watchlist-widget": {
+      "types": "./dist/types/watchlist-widget.d.ts",
+      "import": "./dist/esm/watchlist-widget.js"
+    },
+    "./source": "./src/index.ts",
+    "./source/trading-host": "./src/trading-host.ts",
+    "./source/control-types": "./src/control-types.ts",
+    "./source/formatters": "./src/formatters.ts",
+    "./source/dom": "./src/dom.ts",
+    "./source/positions-widget": "./src/positions-widget.ts",
+    "./source/trade-history-widget": "./src/trade-history-widget.ts",
+    "./source/active-orders-widget": "./src/active-orders-widget.ts",
+    "./source/watchlist-widget": "./src/watchlist-widget.ts",
+    "./styles.css": "./styles/trading-controls.css",
+    "./theme.css": "./styles/theme.css",
+    "./translation-keys.json": "./translation-keys.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "styles",
+    "translation-keys.json",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "api:check": "node tools/check-public-api.mjs",
+    "api:update": "node tools/check-public-api.mjs --update",
+    "css:check": "node tools/check-style-contract.mjs",
+    "i18n:check": "node tools/check-translation-keys.mjs",
+    "i18n:update": "node tools/check-translation-keys.mjs --update",
+    "build:tests": "node build-tests.mjs",
+    "test": "npm run typecheck && npm run api:check && npm run css:check && npm run i18n:check && npm run build:tests && node --test \"tests/_dist/**/*.test.cjs\"",
+    "pack:check": "npm pack --dry-run",
+    "release:check": "node tools/check-release-tag.mjs",
+    "release:patch": "npm version patch -m \"chore: release v%s\"",
+    "release:minor": "npm version minor -m \"chore: release v%s\"",
+    "release:major": "npm version major -m \"chore: release v%s\""
+  },
+  "dependencies": {
+    "@stocksharp/grid": "file:../Grids"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

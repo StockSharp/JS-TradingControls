@@ -1,0 +1,86 @@
+/* Default palette for @stocksharp/trading-controls.
+ *
+ * OPTIONAL. This file exists so the controls render on a page that has no
+ * design system of its own: drop it in and the blotters look like a dark
+ * trading terminal. A host with its own brand does NOT load this file — it
+ * declares the same custom properties itself, and `trading-controls.css` reads
+ * whatever is in scope.
+ *
+ * Every property below is part of the package's public contract and is listed
+ * in the README. `tools/check-style-contract.mjs` fails the build if
+ * `trading-controls.css` reads a property this file does not declare, so the
+ * contract cannot quietly grow a knob nobody documented.
+ *
+ * The values are a default, not a brand. A host's palette will differ, and that
+ * is the point — nothing here is duplicated from any application's stylesheet
+ * and the two are not expected to stay in step.
+ */
+
+:root {
+    /* Surfaces */
+    --t-bg: #0b0e11;
+    --t-panel: #181a20;
+    --t-header: #12151c;
+    --t-hover: #22262f;
+    --t-border: #2b3139;
+
+    /* Text */
+    --t-text: #eaecef;
+    --t-text-dim: #848e9c;
+    --t-text-bright: #ffffff;
+
+    /* Accent */
+    --t-accent: #fcd535;
+    --t-accent-hover: #f0c232;
+    --t-accent-text: #0b0e11;
+    --t-accent-glow-soft: rgba(252, 213, 53, 0.12);
+
+    /* Direction and outcome */
+    --t-green: #0ecb81;
+    --t-red: #f6465d;
+    --t-green-flash: rgba(14, 203, 129, 0.25);
+    --t-red-flash: rgba(246, 70, 93, 0.25);
+
+    /* Warnings. Two shades on purpose: --t-orange marks an action that is
+       destructive but not a cancel (reverse a position), --t-warning marks
+       information the user should read (a rejection reason). */
+    --t-orange: #f0b90b;
+    --t-warning: #e0a800;
+
+    /* Type and shape */
+    --t-font: 'DM Sans', -apple-system, sans-serif;
+    /* A monospace stack that covers Cyrillic: the blotters render localized
+       words ("Отменена", "Лимит") in the same cells as numbers, and a font
+       without those glyphs drops the whole cell to a sans-serif fallback, so
+       one table ends up looking unlike the next. */
+    --t-mono: 'JetBrains Mono', 'Cascadia Code', 'Cascadia Mono', 'Consolas', 'Liberation Mono', monospace;
+    --t-radius: 3px;
+    --t-transition: 180ms ease;
+}
+
+/* Light scheme. Keyed off the same attribute Bootstrap uses, so a host that
+   already flips `data-bs-theme` gets this for free. */
+:root[data-bs-theme="light"] {
+    --t-bg: #f5f7fa;
+    --t-panel: #ffffff;
+    --t-header: #f8fafc;
+    --t-hover: #f1f5f9;
+    --t-border: #e2e8f0;
+
+    --t-text: #1e293b;
+    --t-text-dim: #64748b;
+    --t-text-bright: #0f172a;
+
+    --t-accent: #d97706;
+    --t-accent-hover: #b45309;
+    --t-accent-text: #ffffff;
+    --t-accent-glow-soft: rgba(217, 119, 6, 0.08);
+
+    --t-green: #16a34a;
+    --t-red: #dc2626;
+    --t-green-flash: rgba(22, 163, 74, 0.22);
+    --t-red-flash: rgba(220, 38, 38, 0.22);
+
+    --t-orange: #b45309;
+    --t-warning: #b45309;
+}

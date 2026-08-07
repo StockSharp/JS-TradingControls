@@ -1,0 +1,469 @@
+/* Looks for every element @stocksharp/trading-controls renders.
+ *
+ * The controls emit class names and nothing else — no inline style, no colour
+ * literal, no measurement in TypeScript. This file is the other half of that
+ * bargain, and shipping it is what lets the package render outside the
+ * application it was extracted from.
+ *
+ * It reads its colours, fonts and metrics from `--t-*` custom properties and
+ * declares none of them. `styles/theme.css` carries a working default; a host
+ * with a design system declares the same names itself and skips that file. The
+ * full list is in the README, and `tools/check-style-contract.mjs` fails if a
+ * rule here reads a property the theme does not declare.
+ *
+ * Load order matters in one direction only: a host that wants to override a
+ * rule (not just a token) must load its own stylesheet AFTER this one.
+ */
+
+/* ---------------------------------------------------------------- keyframes */
+
+/* The panel fades in as it is docked, so a restored layout does not appear as
+   a hard flash of four tables at once. */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* A price cell that changed. The background is what animates, not the text,
+   because the text is the number the user is trying to read. */
+@keyframes flashGreen {
+    0% { background: var(--t-green-flash); }
+    100% { background: transparent; }
+}
+
+@keyframes flashRed {
+    0% { background: var(--t-red-flash); }
+    100% { background: transparent; }
+}
+
+/* ------------------------------------------------------------- panel shell */
+
+/* Emitted by `makePanelRoot`. Every control is one of these, and the modifier
+   class next to it (`positions-panel`, `watchlist-panel`, …) is what a host
+   keys any per-control override off. */
+.terminal-panel {
+    background: var(--t-panel);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    animation: fadeIn 0.3s ease both;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--t-text-dim);
+    background: var(--t-header);
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+    /* A docking host commonly uses the header as a drag handle. Without
+       user-select:none the browser starts a text selection on press and the
+       drag never takes off. */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* An input lifted into the header (the watchlist's search box) still has to be
+   selectable, so it opts back in. */
+.panel-header input,
+.panel-header textarea {
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+
+/* The body soaks up whatever the header left and scrolls when the table
+   overflows. `panel-body-with-rail` turns it into a row — table on the left,
+   action rail pinned right — and moves the overflow inward so the rail stays
+   put while the table scrolls under it. */
+.terminal-panel > .panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0;
+    position: relative;
+}
+
+.terminal-panel > .panel-body.panel-body-with-rail {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+.panel-body-content {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    position: relative;
+}
+
+.panel-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 6px;
+    align-items: center;
+    flex-shrink: 0;
+    background: var(--t-header);
+    border-left: 1px solid var(--t-border);
+}
+
+/* On a phone the rail is too cramped and squeezes the table further. Hide it:
+   the per-row × in orders and positions still lets the user act on a single
+   row, and a rail that only refreshes simply goes away.
+
+   Two clauses so it fires for portrait phones (≤768px wide) and for landscape
+   phones as well — one of those is ~932×430, wider than 768 but too short for
+   the desktop layout. */
+@media (max-width: 768px), (max-height: 500px) {
+    .panel-rail { display: none; }
+}
+
+/* --------------------------------------------------------------- icon button */
+
+/* Emitted by `makeIconButton`: the close, refresh, export and cancel-all
+   buttons in the panel chrome, and the per-row actions inside the tables. */
+.bt-icon-btn {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--t-border);
+    color: var(--t-text-dim);
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    padding: 0;
+    transition: all var(--t-transition);
+}
+
+.bt-icon-btn i { font-size: 12px; line-height: 1; }
+
+.bt-icon-btn:hover:not(:disabled) {
+    color: var(--t-text-bright);
+    border-color: var(--t-text-dim);
+}
+
+.bt-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.bt-icon-btn.bt-icon-cancel:hover:not(:disabled),
+.bt-icon-btn.bt-icon-cancel-all:hover {
+    color: var(--t-red);
+    border-color: var(--t-red);
+}
+
+/* Reverse a position — amber, to read as "destructive but not a cancel". */
+.bt-icon-btn.bt-icon-reverse:hover {
+    color: var(--t-orange);
+    border-color: var(--t-orange);
+}
+
+/* The per-row action cell in the positions table: two icon buttons side by
+   side, centred. */
+.position-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+/* ------------------------------------------------------------------- tables */
+
+/* The blotter table skin — active orders, trade history, positions. The
+   watchlist is deliberately not one of these; it is denser and has its own
+   skin further down. */
+.terminal-table {
+    width: 100%;
+    font-size: 11px;
+    font-family: var(--t-mono);
+    border-collapse: collapse;
+}
+
+.terminal-table thead th {
+    padding: 4px 6px;
+    font-weight: 600;
+    color: var(--t-text-dim);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid var(--t-border);
+    position: sticky;
+    top: 0;
+    background: var(--t-panel);
+    white-space: nowrap;
+}
+
+/* A column the grid declared a `value` for is sortable, and it says so by
+   stamping `data-sort`. Clicking cycles asc -> desc -> natural. */
+.terminal-table thead th[data-sort] { cursor: pointer; user-select: none; }
+.terminal-table thead th[data-sort]:hover { color: var(--t-text-bright); }
+.terminal-table thead th.sort-asc::after { content: ' \25B2'; font-size: 7px; }
+.terminal-table thead th.sort-desc::after { content: ' \25BC'; font-size: 7px; }
+
+.terminal-table tbody td {
+    padding: 4px 6px;
+    /* --t-border at half strength. Spelled as a mix rather than the resolved
+       rgba() so it follows the token into a light theme; the literal it
+       replaces stayed dark-grey on white. */
+    border-bottom: 1px solid color-mix(in srgb, var(--t-border) 50%, transparent);
+    white-space: nowrap;
+}
+
+.terminal-table tbody tr { transition: background var(--t-transition); }
+.terminal-table tbody tr:hover { background: var(--t-hover); }
+
+/* Numeric id columns (#42) — dim, monospace, tabular so they line up. */
+.terminal-table .mono-id {
+    color: var(--t-text-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The cash balance pinned above the positions. A pinned grid row supplies its
+   own cells with class names rather than inline styles, so its emphasis lives
+   here with the rest of the table. */
+.terminal-table tbody tr.balance-row .balance-ccy { color: var(--t-accent); font-weight: 600; }
+.terminal-table tbody tr.balance-row .balance-available { color: var(--t-text-bright); }
+.terminal-table tbody tr.balance-row .balance-locked { color: var(--t-text-dim); }
+.terminal-table tbody tr.balance-row .balance-total { color: var(--t-text-bright); font-weight: 600; }
+
+/* A cell the user can double-click to edit in place. */
+.cell-editable { cursor: pointer; border-bottom: 1px dashed var(--t-text-dim); }
+.cell-editable:hover { color: var(--t-accent); }
+
+.inline-edit-input {
+    width: 80px;
+    background: var(--t-bg);
+    border: 1px solid var(--t-accent);
+    color: var(--t-text-bright);
+    font-family: var(--t-mono);
+    font-size: 11px;
+    padding: 1px 4px;
+    outline: none;
+    border-radius: var(--t-radius);
+}
+
+/* Terminal-state rows in active orders. The blotter keeps a row for the
+   order's whole lifetime so the user can read its final state instead of
+   guessing why it vanished, and these dim it so the live rows stay prominent.
+   The tints are deliberately their own hues rather than the direction colours:
+   a filled order is not "up" and a cancelled one is not "down". */
+.terminal-table tbody tr.order-rejected td {
+    color: var(--t-text-dim);
+    background: rgba(220, 53, 69, 0.07);
+}
+
+.terminal-table tbody tr.order-cancelled td {
+    color: var(--t-text-dim);
+    background: rgba(108, 117, 125, 0.10);
+}
+
+.terminal-table tbody tr.order-filled td {
+    color: var(--t-text-dim);
+    background: rgba(40, 167, 69, 0.07);
+}
+
+/* The ? next to a rejected order's status; the reason is its tooltip. */
+.reject-reason-icon {
+    color: var(--t-warning);
+    cursor: help;
+    margin-left: 4px;
+}
+
+.reject-reason-icon:hover { color: var(--t-accent); }
+
+/* ------------------------------------------------------- direction and sign */
+
+/* These four are the only class names in this file that no control emits.
+   They come back out of the host's own `TradingPresentation.sideClass` /
+   `pnlClass`, and a control puts the answer on the cell without looking at it —
+   so the agreement is between the host and this file, with the control only
+   carrying the string between them. The names are stated as the port's
+   `PRESENTATION_CLASSES`, and `tools/check-style-contract.mjs` asserts that
+   every one of them is styled here. A host on its own palette may answer with
+   different names, and then styles those itself. */
+.pnl-positive { color: var(--t-green); font-weight: 600; }
+.pnl-negative { color: var(--t-red); font-weight: 600; }
+.side-buy { color: var(--t-green); font-weight: 600; }
+.side-sell { color: var(--t-red); font-weight: 600; }
+
+/* ------------------------------------------------------ classes from the grid */
+
+/* Two class names come out of @stocksharp/grid rather than out of a column
+   declaration, so a page that styles the controls has to style them too:
+   `grid-empty` on the cell that spans an empty table, and `visually-hidden` on
+   a header whose caption is for screen readers only (an actions column). Both
+   table skins need the first. */
+.terminal-table tbody td.grid-empty,
+.watchlist-table tbody td.grid-empty {
+    text-align: center;
+    color: var(--t-text-dim);
+}
+
+/* Spelled the way Bootstrap spells it. A page that already loads Bootstrap has
+   this rule twice with the same meaning, which is harmless; a page that does
+   not still gets accessible headers. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---------------------------------------------------------------- watchlist */
+
+.watchlist-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* A row of its own rather than a child of the header, because a docking host
+   may lift it into a tab strip separately. */
+.watchlist-search-row {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+}
+
+.watchlist-search-input {
+    width: 100%;
+    background: var(--t-bg);
+    border: 1px solid var(--t-border);
+    color: var(--t-text-bright);
+    font-size: 11px;
+    font-family: var(--t-font);
+    padding: 3px 8px;
+}
+
+.watchlist-search-input:focus {
+    outline: none;
+    border-color: var(--t-accent);
+    box-shadow: 0 0 0 2px var(--t-accent-glow-soft);
+}
+
+/* Two built-in tabs plus one per instrument category, so the strip scrolls
+   rather than wraps. */
+.watchlist-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 3px 6px;
+    background: var(--t-header);
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wl-tab {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--t-text-dim);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    font-family: var(--t-font);
+    transition: all var(--t-transition);
+    white-space: nowrap;
+}
+
+.wl-tab:hover { color: var(--t-text-bright); background: var(--t-hover); }
+
+.wl-tab.active {
+    color: var(--t-accent-text);
+    background: var(--t-accent);
+    border-color: var(--t-accent);
+}
+
+.watchlist-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.watchlist-table {
+    width: 100%;
+    font-size: 11px;
+    font-family: var(--t-mono);
+    border-collapse: collapse;
+}
+
+.watchlist-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--t-panel);
+    padding: 3px 6px;
+    font-weight: 600;
+    color: var(--t-text-dim);
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid var(--t-border);
+    cursor: pointer;
+    user-select: none;
+    font-family: var(--t-font);
+    white-space: nowrap;
+}
+
+.watchlist-table thead th.ta-right { text-align: right; }
+.watchlist-table thead th:hover { color: var(--t-text-bright); }
+.watchlist-table thead th.sort-asc::after { content: ' \25B2'; font-size: 7px; }
+.watchlist-table thead th.sort-desc::after { content: ' \25BC'; font-size: 7px; }
+
+.watchlist-table tbody tr {
+    cursor: pointer;
+    transition: background var(--t-transition);
+}
+
+.watchlist-table tbody tr:hover { background: var(--t-hover); }
+.watchlist-table tbody tr.wl-current { background: var(--t-accent-glow-soft); }
+
+.watchlist-table tbody td {
+    padding: 2px 6px;
+    /* --t-border at about a third, for the same reason as the blotter rule. */
+    border-bottom: 1px solid color-mix(in srgb, var(--t-border) 35%, transparent);
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.wl-sym-cell { display: flex; align-items: center; gap: 4px; }
+
+.wl-fav {
+    background: transparent;
+    border: none;
+    color: var(--t-border);
+    font-size: 11px;
+    padding: 0 2px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--t-transition);
+}
+
+.wl-fav:hover { color: var(--t-accent-hover); }
+.wl-fav.active { color: var(--t-accent); }
+.wl-sym { color: var(--t-text-bright); font-weight: 500; }
+
+.wl-last { text-align: right; color: var(--t-text); transition: background 0.3s ease; }
+.wl-last.flash-up { animation: flashGreen 0.5s ease; }
+.wl-last.flash-down { animation: flashRed 0.5s ease; }
+
+.wl-chg { text-align: right; font-weight: 600; }
+.wl-chg.up { color: var(--t-green); }
+.wl-chg.down { color: var(--t-red); }

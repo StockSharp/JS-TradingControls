@@ -1,0 +1,7 @@
+node_modules/
+dist/
+tests/_dist/
+*.log
+
+# npm pack output
+*.tgz
