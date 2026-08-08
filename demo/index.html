@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>sstradingcontrols · StockSharp JS Trading Controls</title>
+<!-- The package's own stylesheets, in the order it documents: theme.css declares
+     the --t-* tokens, trading-controls.css reads them, and demo.css comes last so
+     the page can override a token (it re-points the palette at the sschart demo
+     family) and add its own chrome. -->
+<link rel="stylesheet" href="../styles/theme.css" />
+<link rel="stylesheet" href="../styles/trading-controls.css" />
+<link rel="stylesheet" href="./demo.css" />
+</head>
+<body>
+
+<header class="demo-header">
+  <span class="brand">sstradingcontrols <span class="sub">· StockSharp JS Trading Controls</span></span>
+  <span class="spacer"></span>
+  <button id="tickBtn" class="tbtn" type="button">Simulate a tick</button>
+  <button id="autoBtn" class="tbtn" type="button"><span class="dot"></span> Auto ticks</button>
+  <button id="resetBtn" class="tbtn" type="button">Reset data</button>
+  <button id="themeBtn" class="tbtn" type="button">&#9788; Light</button>
+</header>
+
+<p class="demo-lede">
+  Four browser trading panels &mdash; <b>watchlist</b>, <b>positions</b>, <b>active orders</b>,
+  <b>trade history</b> &mdash; each rendering its own DOM and reaching the outside world through a
+  single <code>TradingHost</code> object. This page runs the published
+  <code>dist/sstradingcontrols.js</code> bundle over a demo host built in
+  <code>demo/demo.js</code>: sample instruments, positions, orders and fills, no server and no
+  network. Every button, tab, sort header and inline edit below is the real control calling the
+  real port.
+</p>
+
+<!-- Filled by TickerSink.publish(), which the primary watchlist calls after every
+     render — so filtering or re-sorting the watchlist changes this strip. -->
+<div id="ticker" class="ticker" aria-label="Watchlist ticker"></div>
+
+<main class="board">
+  <section class="cell"><div class="cell-host" id="watchlistHost"></div></section>
+  <section class="cell"><div class="cell-host" id="positionsHost"></div></section>
+  <section class="cell"><div class="cell-host" id="ordersHost"></div></section>
+  <section class="cell"><div class="cell-host" id="historyHost"></div></section>
+</main>
+
+<section class="hostlog">
+  <div class="hostlog-head">
+    <span class="hostlog-title">Host port traffic</span>
+    <span class="hostlog-note">every line below is a call a control made into the demo host</span>
+    <span class="spacer"></span>
+    <button id="clearLogBtn" class="tbtn" type="button">Clear</button>
+  </div>
+  <div id="log" class="log" role="log"></div>
+</section>
+
+<script src="../dist/sstradingcontrols.js"></script>
+<script src="./demo.js"></script>
+</body>
+</html>

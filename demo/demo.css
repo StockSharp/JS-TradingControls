@@ -1,0 +1,255 @@
+/* Demo page chrome only.
+ *
+ * Everything inside a panel — the tables, the blotter rows, the watchlist, the
+ * icon buttons, the P&L colours — is styled by the package's own
+ * styles/trading-controls.css. This file styles the page around them and does
+ * one thing to the controls themselves: it re-declares the --t-* tokens.
+ *
+ * That is the documented way to re-skin the package (styles/theme.css says so in
+ * its own header: "a host with its own brand does NOT load this file — it
+ * declares the same custom properties itself"). We still load theme.css, so any
+ * token this file forgets keeps a working default, and we override the handful
+ * that carry the look — pointing them at the palette of the sschart demo so the
+ * two demo pages read as one family.
+ */
+
+/* ---------------------------------------------------------------- palette */
+
+:root {
+    --t-bg: #0b0e11;
+    --t-panel: #131820;
+    --t-header: #131820;
+    --t-hover: #1b2230;
+    --t-border: #2a3546;
+
+    --t-text: #c7d0dc;
+    --t-text-dim: #6b7a8d;
+    --t-text-bright: #ffffff;
+
+    --t-accent: #4a9eff;
+    --t-accent-hover: #3b8ae6;
+    --t-accent-text: #ffffff;
+    --t-accent-glow-soft: rgba(74, 158, 255, 0.14);
+
+    --t-green: #26a69a;
+    --t-red: #ef5350;
+    --t-green-flash: rgba(38, 166, 154, 0.28);
+    --t-red-flash: rgba(239, 83, 80, 0.28);
+
+    --t-orange: #e8a33d;
+    --t-warning: #e8a33d;
+
+    /* One monospace stack for the whole page, numerals included — a trading
+       terminal is read as columns of digits. No @font-face anywhere: these are
+       local family names, and the stack ends at the generic `monospace`. */
+    --t-font: 'IBM Plex Mono', 'JetBrains Mono', 'Cascadia Mono', 'Consolas', monospace;
+    --t-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Cascadia Mono', 'Consolas', monospace;
+    --t-radius: 4px;
+}
+
+/* The package's theme.css keys its light scheme off the same attribute, so the
+   toggle in the header drives both halves at once. */
+:root[data-bs-theme="light"] {
+    --t-bg: #eef1f6;
+    --t-panel: #f4f6fa;
+    --t-header: #ffffff;
+    --t-hover: #e6ebf3;
+    --t-border: #cbd5e1;
+
+    --t-text: #2a3441;
+    --t-text-dim: #67748a;
+    --t-text-bright: #0b1220;
+
+    --t-accent: #2f6fed;
+    --t-accent-hover: #2559c9;
+    --t-accent-text: #ffffff;
+    --t-accent-glow-soft: rgba(47, 111, 237, 0.10);
+
+    --t-green: #0f9d80;
+    --t-red: #e03d4e;
+    --t-green-flash: rgba(15, 157, 128, 0.22);
+    --t-red-flash: rgba(224, 61, 78, 0.22);
+
+    --t-orange: #b45309;
+    --t-warning: #b45309;
+}
+
+/* ------------------------------------------------------------- page shell */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+
+body {
+    background: var(--t-bg);
+    color: var(--t-text);
+    font: 13px/1.45 var(--t-font);
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.demo-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 16px;
+    flex: none;
+    background: var(--t-header);
+    border-bottom: 1px solid var(--t-border);
+}
+
+.demo-header .brand { font-weight: 700; font-size: 15px; color: var(--t-text-bright); }
+.demo-header .sub { color: var(--t-text-dim); font-size: 12px; font-weight: 400; }
+.demo-header .spacer { flex: 1; }
+
+.tbtn {
+    background: transparent;
+    color: var(--t-text);
+    border: 1px solid var(--t-border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.tbtn:hover { border-color: var(--t-accent); color: var(--t-accent); }
+.tbtn.on { background: var(--t-accent); color: var(--t-accent-text); border-color: var(--t-accent); }
+.tbtn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--t-red); opacity: .4; }
+.tbtn.on .dot { background: #fff; opacity: 1; animation: demoPulse 1s ease-in-out infinite; }
+@keyframes demoPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: .35; } }
+
+.demo-lede {
+    flex: none;
+    margin: 0;
+    padding: 10px 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--t-text-dim);
+    border-bottom: 1px solid var(--t-border);
+}
+
+.demo-lede b { color: var(--t-text); font-weight: 600; }
+.demo-lede code { color: var(--t-accent); }
+
+/* ------------------------------------------------------------------ ticker */
+
+.ticker {
+    flex: none;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    height: 30px;
+    padding: 0 16px;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 11.5px;
+    background: var(--t-panel);
+    border-bottom: 1px solid var(--t-border);
+}
+
+.ticker .tk-empty { color: var(--t-text-dim); }
+.ticker .tk { display: inline-flex; gap: 6px; align-items: baseline; }
+.ticker .tk-sym { color: var(--t-text-dim); font-weight: 600; }
+.ticker .tk-px { color: var(--t-text-bright); }
+.ticker .tk-chg.up { color: var(--t-green); }
+.ticker .tk-chg.down { color: var(--t-red); }
+
+/* ------------------------------------------------------------------- board */
+
+/* Watchlist and positions across the top, orders and trade history under them —
+   the way a terminal stacks its blotters. Each cell is its own scroll context so
+   a long table never grows the page. */
+.board {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1px;
+    background: var(--t-border);
+}
+
+.cell { min-width: 0; min-height: 0; display: flex; background: var(--t-bg); }
+.cell-host { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.cell-host > .terminal-panel { flex: 1; min-width: 0; }
+
+/* The watchlist's scroll container. The three blotters wrap their table in
+   `.panel-body-content`, which the package sizes and scrolls; the watchlist
+   wraps its own in `.watchlist-pane`, which the package leaves to the host —
+   without a height on it the table simply overflows the panel. */
+.watchlist-panel .watchlist-pane { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* What replaces a panel after its × button called host.close(). The button
+   re-creates the control through the same Widget.create() the page used at
+   startup, so a closed panel is genuinely gone rather than hidden. */
+.cell-closed {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    color: var(--t-text-dim);
+    font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+    body { overflow: auto; height: auto; }
+    .board { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 340px; grid-template-rows: none; }
+}
+
+/* --------------------------------------------------------------- host log */
+
+.hostlog {
+    flex: none;
+    height: 172px;
+    display: flex;
+    flex-direction: column;
+    background: var(--t-panel);
+    border-top: 1px solid var(--t-border);
+}
+
+.hostlog-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 16px;
+    border-bottom: 1px solid var(--t-border);
+}
+
+.hostlog-title { font-size: 10px; text-transform: uppercase; letter-spacing: .09em; color: var(--t-text-dim); font-weight: 700; }
+.hostlog-note { font-size: 11px; color: var(--t-text-dim); }
+.hostlog-head .spacer { flex: 1; }
+.hostlog-head .tbtn { padding: 3px 10px; }
+
+.log { flex: 1; overflow-y: auto; padding: 4px 16px 8px; font-size: 11px; }
+.log-line { padding: 1px 0; color: var(--t-text-dim); white-space: pre-wrap; }
+.log-line .t { color: var(--t-border); margin-right: 8px; }
+.log-line .k { color: var(--t-accent); }
+.log-line.data { color: var(--t-text); }
+.log-line.act { color: var(--t-text-bright); }
+.log-line.up { color: var(--t-green); }
+.log-line.down { color: var(--t-red); }
+.log-line.warn { color: var(--t-warning); }
+
+/* ------------------------------------------------------------------- icons */
+
+/* The controls emit Bootstrap Icons markup (`<i class="bi bi-x">`) and leave the
+   icon font to the host — see dom.ts `makeIcon`. This page loads no web font, so
+   it answers with plain Unicode glyphs instead. Presentation only: the buttons
+   themselves come from the package and are wired to its own listeners. */
+.bi { font-style: normal; line-height: 1; }
+.bi::before { display: inline-block; }
+.bi-x::before { content: '\2715'; }
+.bi-x-circle::before { content: '\2297'; font-size: 13px; }
+.bi-arrow-clockwise::before { content: '\21BB'; font-size: 13px; }
+.bi-arrow-left-right::before { content: '\21C4'; font-size: 13px; }
+.bi-file-earmark-spreadsheet::before { content: '\2913'; font-size: 13px; }
+.bi-question-circle::before { content: '?'; font-weight: 700; }
