@@ -26,27 +26,10 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: TradingControls
     steps:
-      # Checked out into a named directory rather than the workspace root so the
-      # grid can sit BESIDE it, which is where package.json says it is.
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.sha }}
-          path: TradingControls
-
-      # @stocksharp/grid is a `file:../Grids` dependency until it is published.
-      # Without the sibling, `npm ci` still exits 0 -- it just leaves a dangling
-      # symlink -- and the tests below then fail on a module that "installed
-      # fine". The release gate refuses to publish while that dependency is
-      # still a path at all (see "Check this is publishable"), so this checkout
-      # is what makes the tests runnable, not a way of shipping the path.
-      - uses: actions/checkout@v6
-        with:
-          repository: StockSharp/Grids
-          path: Grids
 
       - uses: actions/setup-node@v6
         with:
