@@ -6,7 +6,7 @@
 // off the socket); each update fans through the host's broadcast so duplicates
 // stay in sync.
 //
-// The table itself is `DataGrid` from `@stocksharp/grid`: the columns below are
+// The table itself is `DataGrid` from `@stocksharp/grids`: the columns below are
 // the single declaration of this blotter — caption, value, rendering, colour
 // class and export all live together, and the <thead> is left empty for the
 // grid to fill. Cells that hold a control return a real Node with its own
@@ -17,7 +17,7 @@ import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.j
 import { ControlTypes } from './control-types.js';
 import { TradingHost, assertHost } from './trading-host.js';
 import type { OrderRow } from './trading-data.js';
-import { DataGrid, GridColumn } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 
 /// StockSharp order states as they arrive on the wire. The blotter branches on
 /// them for row colour, for whether a cell can be edited in place and for what

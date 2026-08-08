@@ -1,6 +1,6 @@
 # StockSharp JS Trading Controls
 
-[![Build and test](https://github.com/StockSharp/TradingControls/actions/workflows/ci.yml/badge.svg)](https://github.com/StockSharp/TradingControls/actions/workflows/ci.yml)
+[![Build and test](https://github.com/StockSharp/JS-TradingControls/actions/workflows/ci.yml/badge.svg)](https://github.com/StockSharp/JS-TradingControls/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/%40stocksharp%2Ftrading-controls.svg)](https://www.npmjs.com/package/@stocksharp/trading-controls)
 [![License](https://img.shields.io/badge/license-StockSharp%20EULA-c8202f.svg)](LICENSE)
 
@@ -10,12 +10,12 @@ with a pinned cash balance, a **trade history** blotter, and a **watchlist**
 with live quotes, favourites and category tabs.
 
 Each control builds its own DOM, renders its own table through
-[`@stocksharp/grid`](https://www.npmjs.com/package/@stocksharp/grid), and reaches
+[`@stocksharp/grids`](https://www.npmjs.com/package/@stocksharp/grids), and reaches
 the outside world through exactly one object — a `TradingHost`.
 
 [StockSharp website](https://stocksharp.com/) ·
-[GitHub repository](https://github.com/StockSharp/TradingControls) ·
-[Issue tracker](https://github.com/StockSharp/TradingControls/issues)
+[GitHub repository](https://github.com/StockSharp/JS-TradingControls) ·
+[Issue tracker](https://github.com/StockSharp/JS-TradingControls/issues)
 
 ## Quick start
 
@@ -181,7 +181,7 @@ Two things the page still owns:
   `bi bi-arrow-clockwise`) but does not draw it, exactly as it names a colour
   token without defining it.
 - **`grid-empty`, `visually-hidden`, `sort-asc` / `sort-desc`** come out of
-  `@stocksharp/grid`. This stylesheet carries them so an adopting page does not
+  `@stocksharp/grids`. This stylesheet carries them so an adopting page does not
   have to know that; the second is spelled the way Bootstrap spells it.
 
 ## What each control is

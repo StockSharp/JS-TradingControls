@@ -34,10 +34,10 @@ await build({
     logLevel: 'info',
 });
 
-/// Move the emitted files — and only them — onto `@stocksharp/grid`'s BUILT
+/// Move the emitted files — and only them — onto `@stocksharp/grids`'s BUILT
 /// entry points.
 ///
-/// The sources import the grid as `@stocksharp/grid/source/data-grid`, and that
+/// The sources import the grid as `@stocksharp/grids/source/data-grid`, and that
 /// is deliberate: `./source/*` is an unconditional path to the grid's own
 /// TypeScript, which is what the two toolchains that compile these controls
 /// from source both need. The terminal bundles them as .ts through esbuild, and
@@ -58,7 +58,7 @@ async function useGridsBuiltEntryPoints() {
     const rewritten = [];
     for (const path of await emittedFiles(dist)) {
         const before = await readFile(path, 'utf8');
-        const after = before.replaceAll('@stocksharp/grid/source/', '@stocksharp/grid/');
+        const after = before.replaceAll('@stocksharp/grids/source/', '@stocksharp/grids/');
         if (after === before) continue;
         await writeFile(path, after, 'utf8');
         rewritten.push(path);

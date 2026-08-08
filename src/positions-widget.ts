@@ -7,7 +7,7 @@
 // each update to every live instance so duplicates of the panel render in
 // lockstep.
 //
-// The table is `DataGrid` from `@stocksharp/grid`: the columns below are this
+// The table is `DataGrid` from `@stocksharp/grids`: the columns below are this
 // blotter's single declaration and the <thead> is left empty for the grid to
 // fill. The cash balance is a pinned row — a different shape from a position,
 // so it supplies its own cells, sits outside the sort and stays out of the
@@ -17,7 +17,7 @@ import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.j
 import { ControlTypes } from './control-types.js';
 import { TradingHost, assertHost } from './trading-host.js';
 import type { BalanceRow, PositionRow } from './trading-data.js';
-import { DataGrid, GridColumn, GridPinnedRow, GridPinnedPlacements } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn, GridPinnedRow, GridPinnedPlacements } from '@stocksharp/grids/source/data-grid';
 
 /// Everything the blotter needs beyond the host port. All required: the action
 /// buttons live in the cells and in the rail now, so a panel that cannot

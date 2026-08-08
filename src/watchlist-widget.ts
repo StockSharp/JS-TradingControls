@@ -5,7 +5,7 @@
 // Each instance has its own search/filter/sort state; favourites are shared,
 // held under one key in the host's preference store.
 //
-// The table is `DataGrid` from `@stocksharp/grid`. The grid holds the FILTERED
+// The table is `DataGrid` from `@stocksharp/grids`. The grid holds the FILTERED
 // instruments and does the sorting, which is what makes the two caps mean
 // different things: `renderLimit` caps what gets painted while the export and
 // the subscription sync read the whole filtered set. A live quote patches one
@@ -15,7 +15,7 @@ import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.j
 import { ControlTypes } from './control-types.js';
 import { MarketDataClient, MarketDataLevels, TradingApi, TradingHost, assertHost } from './trading-host.js';
 import type { InstrumentRow, QuoteStats } from './trading-data.js';
-import { DataGrid, GridColumn } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 
 /// What the panel needs beyond the host port. Picking an instrument is the one
 /// thing it reports that is not the ticker: the panel does not switch the

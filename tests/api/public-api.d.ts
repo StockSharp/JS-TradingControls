@@ -1,7 +1,7 @@
 // FILE: active-orders-widget.d.ts
 import { TradingHost } from './trading-host.js';
 import type { OrderRow } from './trading-data.js';
-import { DataGrid, GridColumn } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export declare const OrderStates: {
     readonly PendingRisk: 1;
     readonly Sent: 2;
@@ -96,7 +96,7 @@ export type { WatchlistDeps } from './watchlist-widget.js';
 // FILE: positions-widget.d.ts
 import { TradingHost } from './trading-host.js';
 import type { BalanceRow, PositionRow } from './trading-data.js';
-import { DataGrid, GridColumn, GridPinnedRow } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn, GridPinnedRow } from '@stocksharp/grids/source/data-grid';
 export interface PositionsDeps {
     host: TradingHost;
     closePosition(portfolioId: number, instrumentId: number, symbol: string): void;
@@ -134,7 +134,7 @@ export declare class PositionsWidget {
 // FILE: trade-history-widget.d.ts
 import { TradingHost } from './trading-host.js';
 import type { TradeRow } from './trading-data.js';
-import { DataGrid, GridColumn } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export interface TradeHistoryDeps {
     host: TradingHost;
 }
@@ -279,7 +279,7 @@ export declare function assertHost(host: TradingHost, controlName: string): Trad
 // FILE: watchlist-widget.d.ts
 import { MarketDataClient, TradingApi, TradingHost } from './trading-host.js';
 import type { InstrumentRow, QuoteStats } from './trading-data.js';
-import { DataGrid, GridColumn } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export interface WatchlistDeps {
     host: TradingHost;
     onSelect(symbol: string): void;

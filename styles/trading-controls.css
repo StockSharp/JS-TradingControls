@@ -297,7 +297,7 @@
 
 /* ------------------------------------------------------ classes from the grid */
 
-/* Two class names come out of @stocksharp/grid rather than out of a column
+/* Two class names come out of @stocksharp/grids rather than out of a column
    declaration, so a page that styles the controls has to style them too:
    `grid-empty` on the cell that spans an empty table, and `visually-hidden` on
    a header whose caption is for screen readers only (an actions column). Both

@@ -13,7 +13,7 @@ Source in `src/`, tests in `tests/`, looks in `styles/`. Bundled with
 esbuild/tsc via `build.mjs`. `dist/` and `tests/_dist/` are build outputs and are
 gitignored — never commit them.
 
-Tables are rendered by `@stocksharp/grid`, a real dependency. Do not
+Tables are rendered by `@stocksharp/grids`, a real dependency. Do not
 reimplement column, sort or export logic here; if the grid is missing something,
 change the grid.
 
@@ -178,7 +178,7 @@ permission` on publish:
 - Keep npm ≥ 11.5.1 and Node ≥ 22.14 in the workflow (currently npm 11.6.2 /
   Node 24) — required for trusted publishing.
 
-## `@stocksharp/grid` is a `file:` link until it is published
+## `@stocksharp/grids` is a `file:` link until it is published
 `package.json` depends on `file:../Grids`, so this repository expects the `Grids`
 checkout as a sibling — and so do both workflows, which check it out beside this
 one. Without it `npm ci` still exits 0, leaving a dangling symlink, and the whole
@@ -200,7 +200,7 @@ also unpublishable: tsc copies a specifier through untouched, so the emitted
 `dist/esm/*.js` would import a `.ts` file and an adopter's `import` of this
 package would die inside `node_modules`. `build.mjs` rewrites the specifier in
 the emitted `.js`/`.d.ts` only — source keeps `./source`, dist depends on
-`@stocksharp/grid/<name>`, and neither package has to be built for the other to
+`@stocksharp/grids/<name>`, and neither package has to be built for the other to
 work. CI proves it by actually importing `dist/esm/index.js` in node; keep that
 step.
 

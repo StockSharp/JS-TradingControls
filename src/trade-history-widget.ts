@@ -9,7 +9,7 @@
 // renders what it is given, and the host decides what "the active portfolio"
 // means.
 //
-// The table is `DataGrid` from `@stocksharp/grid`: the columns below are this
+// The table is `DataGrid` from `@stocksharp/grids`: the columns below are this
 // blotter's single declaration and the <thead> is left empty for the grid to
 // fill.
 import { formatPrice, formatQty, formatTime } from './formatters.js';
@@ -17,7 +17,7 @@ import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.j
 import { ControlTypes } from './control-types.js';
 import { TradingHost, assertHost } from './trading-host.js';
 import type { TradeRow } from './trading-data.js';
-import { DataGrid, GridColumn } from '@stocksharp/grid/source/data-grid';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 
 /// The panel needs nothing beyond the host port: its data source, its
 /// portfolio and its lifecycle all arrive through it.

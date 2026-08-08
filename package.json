@@ -9,11 +9,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/StockSharp/TradingControls.git"
+    "url": "git+https://github.com/StockSharp/JS-TradingControls.git"
   },
-  "homepage": "https://github.com/StockSharp/TradingControls#readme",
+  "homepage": "https://github.com/StockSharp/JS-TradingControls#readme",
   "bugs": {
-    "url": "https://github.com/StockSharp/TradingControls/issues"
+    "url": "https://github.com/StockSharp/JS-TradingControls/issues"
   },
   "keywords": [
     "stocksharp",
@@ -119,7 +119,7 @@
     "release:major": "npm version major -m \"chore: release v%s\""
   },
   "dependencies": {
-    "@stocksharp/grid": "^0.1.1"
+    "@stocksharp/grids": "^0.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -25,7 +25,7 @@ const stylesheetPath = join(root, 'styles', 'trading-controls.css');
 const themePath = join(root, 'styles', 'theme.css');
 const portPath = join(root, 'src', 'trading-host.ts');
 
-// Emitted by @stocksharp/grid, not by this package, but a host still has to
+// Emitted by @stocksharp/grids, not by this package, but a host still has to
 // style them — so the stylesheet carries them and this check knows why.
 const _fromGrid = ['grid-empty', 'visually-hidden', 'sort-asc', 'sort-desc'];
 
@@ -57,7 +57,7 @@ const failures = [];
 const styled = new Set([...stylesheet.matchAll(/\.([A-Za-z][\w-]*)/g)].map((m) => m[1]));
 for (const name of _fromGrid) {
     if (!styled.has(name))
-        failures.push(`styles/trading-controls.css does not style ".${name}", which @stocksharp/grid emits.`);
+        failures.push(`styles/trading-controls.css does not style ".${name}", which @stocksharp/grids emits.`);
 }
 
 for (const [file, emitted] of await emittedClasses()) {
