@@ -489,9 +489,27 @@ export function installFakeDom(): void {
         querySelector: () => null,
         querySelectorAll: () => [],
         addEventListener: () => { },
-        body: { appendChild: () => { } },
+        removeEventListener: () => { },
+        // A real element rather than a stub: the grid's context menu appends
+        // itself to the body, and a test reads what opened by querying it.
+        body: new FakeElement('body'),
+    };
+    // The context menu also binds dismissal to the window and keeps itself
+    // inside it; zero sizes mean "no window to stay inside", which the menu
+    // treats as nothing to do.
+    (globalThis as Record<string, unknown>).window = {
+        addEventListener: () => { },
+        removeEventListener: () => { },
+        innerWidth: 0,
+        innerHeight: 0,
     };
     (globalThis as Record<string, unknown>).devicePixelRatio = 1;
     (globalThis as Record<string, unknown>).ResizeObserver = FakeResizeObserver;
     resizeObservers.length = 0;
+}
+
+/// The installed body, as the fake it really is — for a test that asserts on
+/// what floated up to it (the grid's context menu, nothing else so far).
+export function fakeBody(): FakeElement {
+    return (globalThis as unknown as { document: { body: FakeElement } }).document.body;
 }

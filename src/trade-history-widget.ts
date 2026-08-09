@@ -15,6 +15,7 @@
 import { formatPrice, formatQty, formatTime } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
+import { makeGridMenu } from './grid-menu.js';
 import { TradingHost, assertHost } from './trading-host.js';
 import type { TradeRow } from './trading-data.js';
 import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
@@ -109,6 +110,7 @@ export class TradeHistoryWidget {
                 defaultSort: { col: 'time', dir: 'desc' },
                 rowKey: (t) => String(t.id),
                 emptyText: this._host.t('No trade history'),
+                contextMenu: makeGridMenu(this._host),
             })
             : null;
 

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { asDom, asFake, el, installFakeDom, type FakeElement } from './fake-dom.js';
+import { asDom, asFake, el, fakeBody, installFakeDom, type FakeElement } from './fake-dom.js';
 import { fakeHost } from './fake-host.js';
 import { allElements, body, head, headerCaptions, painted, rowKeys } from './panel-probe.js';
 import { ActiveOrdersWidget } from '../src/active-orders-widget.js';
@@ -274,5 +274,24 @@ describe('ActiveOrdersWidget', () => {
                 cancelAllOrders: () => { }, refreshOrders: () => { },
             } as never),
             /dep "replaceOrder" is required/);
+    });
+
+    // The table's right-click menu is the grid's, but its wording is not: every
+    // label reaches the menu through `host.t()`, like every other user-visible
+    // string here. The fake host echoes keys, so a label that reads as its key
+    // proves the route — and a label in the grid's own English would prove a
+    // hardcode.
+    it('opens the grid menu worded by the host, not by the grid', () => {
+        const { root } = activeOrdersPanel();
+        const thead = root.querySelector('.active-orders-table thead')!;
+        thead.dispatchEvent({ type: 'contextmenu', target: thead, clientX: 4, clientY: 4 });
+
+        const menu = fakeBody().querySelector('.grid-menu');
+        assert.notEqual(menu, null, 'right-click should open the grid menu');
+        const labels = menu!.childNodes.map(item => item.textContent);
+        assert.ok(labels.includes('ShowAllColumns'), `t()-worded item missing from: ${labels.join(', ')}`);
+        assert.ok(labels.includes('ExportToXlsx'), `t()-worded item missing from: ${labels.join(', ')}`);
+        assert.ok(!labels.includes('Show all columns'), 'the grid default leaked past the host');
+        assert.ok(!labels.includes('Export to .xlsx'), 'the grid default leaked past the host');
     });
 });

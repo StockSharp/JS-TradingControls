@@ -13,6 +13,7 @@
 // repaint would restart the flash animation it just triggered.
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
+import { makeGridMenu } from './grid-menu.js';
 import { MarketDataClient, MarketDataLevels, TradingApi, TradingHost, assertHost } from './trading-host.js';
 import type { InstrumentRow, QuoteStats } from './trading-data.js';
 import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
@@ -164,6 +165,7 @@ export class WatchlistWidget {
                     this._syncSubs();
                     this._publishVisible();
                 },
+                contextMenu: makeGridMenu(this._host),
             })
             : null;
 

@@ -79,6 +79,11 @@ export declare function formatPnl(pnl: Numeric): string;
 export declare function cleanRejectReason(reason: string | null | undefined): string;
 export {};
 
+// FILE: grid-menu.d.ts
+import { TradingHost } from './trading-host.js';
+import type { GridMenuOptions } from '@stocksharp/grids/source/data-grid';
+export declare function makeGridMenu<TRow>(host: TradingHost): GridMenuOptions<TRow>;
+
 // FILE: index.d.ts
 export { MarketDataLevels, PRESENTATION_CLASSES, assertHost } from './trading-host.js';
 export type { HostStore, MarketDataClient, MarketDataLevel, TickerSink, TradingApi, TradingContext, TradingControl, TradingHost, TradingPresentation, } from './trading-host.js';

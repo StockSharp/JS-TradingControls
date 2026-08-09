@@ -323,6 +323,140 @@
     border: 0;
 }
 
+/* The grid's context menu and its filter rule dialog. The grid draws them at
+   the pointer and names their parts; the controls are what put them on screen
+   (see grid-menu.ts), so their look ships here with everything else the
+   controls emit. Position and coordinates are the grid's inline business —
+   these rules only dress the box. */
+.grid-menu {
+    z-index: 100;
+    min-width: 190px;
+    padding: 4px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    font-family: var(--t-font);
+    font-size: 12px;
+    color: var(--t-text);
+}
+
+.grid-menu-item {
+    padding: 5px 10px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+}
+
+.grid-menu-item:hover { background: var(--t-hover); color: var(--t-text-bright); }
+
+.grid-menu-item.is-disabled { color: var(--t-text-dim); opacity: 0.6; cursor: default; }
+.grid-menu-item.is-disabled:hover { background: transparent; color: var(--t-text-dim); }
+
+.grid-menu-item.is-checked::before { content: '· '; color: var(--t-accent); }
+
+.grid-menu-separator {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--t-border);
+}
+
+.grid-filter-dialog {
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 240px;
+    padding: 10px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    font-family: var(--t-font);
+    font-size: 12px;
+    color: var(--t-text);
+}
+
+.grid-filter-dialog-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.grid-filter-dialog-row { display: flex; align-items: center; gap: 6px; }
+
+.grid-filter-dialog-op,
+.grid-filter-dialog-value {
+    padding: 4px 8px;
+    background: var(--t-bg);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    color: var(--t-text);
+    font-family: var(--t-font);
+    font-size: 12px;
+}
+
+.grid-filter-dialog-value { flex: 1; min-width: 0; }
+
+.grid-filter-dialog-op:focus,
+.grid-filter-dialog-value:focus {
+    outline: none;
+    border-color: var(--t-accent);
+}
+
+/* The set filter's pick list: every value the column holds, scrollable when
+   the column holds many. */
+.grid-filter-dialog-values {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.grid-filter-dialog-values-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+}
+
+.grid-filter-dialog-values-item:hover { background: var(--t-hover); }
+
+.grid-filter-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.grid-filter-dialog-actions button {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    color: var(--t-text);
+    font-family: var(--t-font);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.grid-filter-dialog-actions button:hover { border-color: var(--t-accent); color: var(--t-accent); }
+
+.grid-filter-dialog-apply {
+    background: var(--t-accent);
+    border-color: var(--t-accent);
+    color: var(--t-accent-text);
+}
+
+.grid-filter-dialog-apply:hover { background: var(--t-accent-hover); color: var(--t-accent-text); }
+
 /* ---------------------------------------------------------------- watchlist */
 
 .watchlist-panel {

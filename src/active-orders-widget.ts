@@ -15,6 +15,7 @@
 import { cleanRejectReason, formatPrice, formatQty } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
+import { makeGridMenu } from './grid-menu.js';
 import { TradingHost, assertHost } from './trading-host.js';
 import type { OrderRow } from './trading-data.js';
 import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
@@ -158,6 +159,7 @@ export class ActiveOrdersWidget {
                 emptyText: this._host.t('NoActiveOrders'),
                 // Terminal rows are greyed out so the live ones stay visually prominent.
                 rowClass: (o) => ActiveOrdersWidget._rowClass(o),
+                contextMenu: makeGridMenu(this._host),
             })
             : null;
 

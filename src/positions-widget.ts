@@ -15,6 +15,7 @@
 import { formatPnl, formatPrice } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
+import { makeGridMenu } from './grid-menu.js';
 import { TradingHost, assertHost } from './trading-host.js';
 import type { BalanceRow, PositionRow } from './trading-data.js';
 import { DataGrid, GridColumn, GridPinnedRow, GridPinnedPlacements } from '@stocksharp/grids/source/data-grid';
@@ -135,6 +136,7 @@ export class PositionsWidget {
                 // Re-read on every render, so the cash figures track the live balance
                 // without the widget having to repaint the position rows itself.
                 pinnedRows: () => this._pinnedRows(),
+                contextMenu: makeGridMenu(this._host),
             })
             : null;
 
