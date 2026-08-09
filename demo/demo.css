@@ -136,12 +136,16 @@ body {
 /* -------------------------------------------------------------- dock host */
 
 /* The terminal's own answer to a short window: the dock never squeezes below a
-   usable board — the page scrolls instead. 70px = the header and the statusbar. */
+   usable board — the page scrolls instead. 70px = the header and the statusbar.
+   Clipped, because the 'always' renderer parks the overlays of hidden tab
+   panels just past the shell's bottom edge — without the clip that parking lot
+   stretches the page by a whole dock of empty scroll. */
 .dock-host {
     flex: none;
     height: max(880px, calc(100vh - 70px));
     width: 100%;
     position: relative;
+    overflow: hidden;
 }
 
 /* The --dv-* custom properties are how dockview's stylesheet takes its colours.
