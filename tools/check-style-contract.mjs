@@ -37,7 +37,11 @@ const _hostStyled = new Set([
     // Structural hooks the controls query themselves; they carry no looks.
     'positions-body', 'trade-history-body', 'active-orders-body',
     'watchlist-headers', 'watchlist-search', 'watchlist-pane', 'panel-close-btn',
-    'panel-refresh-btn', 'panel-export-btn', 'panel-cancel-all-btn',
+    'panel-refresh-btn', 'panel-export-btn', 'panel-cancel-all-btn', 'panel-add-btn',
+    // The ladder's close button. Its looks come from the `bt-icon-btn
+    // bt-icon-cancel` pair beside it; this name is only how the control finds
+    // the button it built.
+    'ob-close-btn',
     // Table identity classes; the skin is on `.terminal-table` / `.watchlist-table`.
     'positions-table', 'trade-history-table', 'active-orders-table',
     'positions-panel', 'trade-history-panel', 'active-orders-panel',
@@ -45,6 +49,12 @@ const _hostStyled = new Set([
     'form-control', 'form-control-sm', 'bi',
     // The grid's own row marker, styled through `.watchlist-table tbody tr`.
     'wl-row',
+    // Order entry: the panel modifier, plus one class per field of the form.
+    // The field classes are how the pad reaches its own inputs (`.oe-field-qty
+    // input`) and which of them the current order type shows; the looks are on
+    // `.oe-field` and `.oe-field-hidden`, so these carry none of their own.
+    'order-entry-panel',
+    'oe-field-price', 'oe-field-stop', 'oe-field-qty', 'oe-field-tp', 'oe-field-sl',
 ]);
 
 const stylesheet = await readFile(stylesheetPath, 'utf8');

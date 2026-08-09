@@ -18,32 +18,46 @@
 // A missing member has to be a loud failure at wiring time, not a quiet one at
 // click time.
 //
-// Seven members have no call site among the four controls this package ships —
-// `spawn`, `persistState`, `saveLayout`, `log`, `trading.pickInstrument`,
-// `marketData.resubscribe` and `marketData.getOrders`. They are required
-// anyway, and the reason is not a future one:
+// Every member here has a caller among the controls this package ships. The
+// seven that once looked speculative — `spawn`, `persistState`, `saveLayout`,
+// `log`, `trading.pickInstrument`, `marketData.resubscribe` and
+// `marketData.getOrders` — are the order book's and the trade feed's: a ladder
+// recovers from a sequence gap with `resubscribe` without unsubscribing its
+// neighbours, badges its own resting size from `getOrders`, reports the wire
+// anomalies a user cannot see through `log`, and retargets itself through
+// `pickInstrument`; both of them `spawn` a sibling and record what they
+// remember with `persistState` + `saveLayout`.
 //
-//   The port was extracted from a terminal that has SEVEN controls, four of
-//   which now live here. The other three — the order book, the order entry
-//   pad and the trade feed — are already written against THIS interface, in
-//   this repository's sibling host, importing `TradingHost` and `assertHost`
-//   from this module today. Every one of the seven members above is called by
-//   them: the order book alone accounts for `resubscribe` (recovering from a
-//   sequence gap without unsubscribing its neighbours), `getOrders` (its "your
-//   size is here" badge), `log` (wire anomalies the user cannot see) and
-//   `pickInstrument`; the order book and the trade feed both `spawn` and both
-//   `persistState` + `saveLayout`.
-//
-//   So this is one port with three of its consumers still on the host's side
-//   of the boundary, not a port padded with speculation. Narrowing it now and
-//   widening it again as each of those three moves in would break every host
-//   twice for the sake of a window in which no control is missing.
-//
-// The cost is real and worth stating: a host adopting only the four shipped
-// controls must still supply seven members nothing will call. They are cheap
+// The cost of "everything is required" is still real and worth stating: a host
+// adopting a subset must supply members that subset never calls. They are cheap
 // (a no-op `spawn`, a `log` that forwards to the console) — but they are not
 // free, and an adopter who supplies stubs is not doing anything wrong.
 import type { InstrumentRow, OrderRow, OrderSide, OrderStatus, OrderType, QuoteStats, TradeRow } from './trading-data.js';
+
+/// The colours a control has to paint with as values rather than as class
+/// names.
+///
+/// A class name cannot reach a `<canvas>`: the pixels are drawn by the control,
+/// so the palette has to arrive as strings. Every other look in this package is
+/// a class the host's stylesheet gives meaning to, and this is the one place
+/// that arrangement cannot hold — which is why the colours come from the host
+/// here too, rather than being written into the package as literals the host
+/// never chose. Each value is any CSS colour the host's palette uses; a control
+/// varies the opacity itself, so a solid colour is the expected answer.
+export interface CanvasPalette {
+    /// The rising / bid / buy direction — the colour behind `side-buy`.
+    up: string;
+    /// The falling / ask / sell direction — the colour behind `side-sell`.
+    down: string;
+    /// Dividers, gridlines and axes drawn on a canvas — axis labels included.
+    grid: string;
+    /// Type for the text a control draws on a canvas, as the `font` shorthand
+    /// (`'10px monospace'`). A canvas inherits nothing from the page and
+    /// resolves no custom property, so a font is the one measurement the host
+    /// has to state as a value; the alternative is the package picking a size
+    /// and a family the host's design system never chose.
+    font: string;
+}
 
 /// How a host words and colours the trading vocabulary. The control owns the
 /// data; the host owns the language and the stylesheet, so it says what a side
@@ -60,6 +74,12 @@ import type { InstrumentRow, OrderRow, OrderSide, OrderStatus, OrderType, QuoteS
 export interface TradingPresentation {
     /// Localized "Buy" / "Sell".
     sideText(side: OrderSide): string;
+    /// Is this side a buy? The same knowledge `sideText` and `sideClass`
+    /// already need, asked for as a predicate: a control that has to put a row
+    /// on the bid or the ask half of a book is deciding structure, not wording,
+    /// and the alternative is each control spelling out which of `0`, `'Buy'`
+    /// and `'BUY'` the wire it happens to be fed uses.
+    isBuy(side: OrderSide): boolean;
     /// Localized short order type — "LMT", "MKT", "STP", "STP-LMT". Needs both
     /// prices because a conditional order is only a stop-limit when it carries
     /// a limit price as well as a stop price.
@@ -74,6 +94,10 @@ export interface TradingPresentation {
     /// stylesheet styles `pnl-positive` and `pnl-negative`; the empty string is
     /// a legitimate answer for "no colour".
     pnlClass(pnl: number): string;
+    /// The palette for the parts a control draws itself. Read per paint, so a
+    /// host that switches theme repaints in the new colours without the control
+    /// being told a theme exists.
+    canvasPalette(): CanvasPalette;
 }
 
 /// The class names `TradingPresentation` is expected to return, as data.
@@ -244,10 +268,12 @@ export function assertHost(host: TradingHost, controlName: string): TradingHost 
 
     _required(host.presentation, 'host.presentation', 'object', controlName);
     _required(host.presentation.sideText, 'host.presentation.sideText', 'function', controlName);
+    _required(host.presentation.isBuy, 'host.presentation.isBuy', 'function', controlName);
     _required(host.presentation.typeText, 'host.presentation.typeText', 'function', controlName);
     _required(host.presentation.statusText, 'host.presentation.statusText', 'function', controlName);
     _required(host.presentation.sideClass, 'host.presentation.sideClass', 'function', controlName);
     _required(host.presentation.pnlClass, 'host.presentation.pnlClass', 'function', controlName);
+    _required(host.presentation.canvasPalette, 'host.presentation.canvasPalette', 'function', controlName);
 
     _required(host.preferences, 'host.preferences', 'object', controlName);
     _required(host.preferences.get, 'host.preferences.get', 'function', controlName);

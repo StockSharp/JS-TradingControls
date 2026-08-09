@@ -110,6 +110,53 @@ export interface InstrumentRow {
     category?: string;
 }
 
+/// One price level of an order book side, as the wire delivers it. A level
+/// whose quantity is zero is a delete instruction in a diff frame, not an empty
+/// level, so the field carries meaning at every value including zero.
+export interface QuoteLevel {
+    price?: number | null;
+    quantity?: number | null;
+}
+
+/// One order-book update.
+///
+/// The first frame of a (re)subscription is a snapshot: the receiver drops what
+/// it holds and applies every level. The frames after it are diffs touching
+/// only the levels that changed. `sequence` is monotonic per symbol, so a gap
+/// means a frame was missed and the diffs after it cannot be trusted — the cure
+/// is a fresh snapshot, which is what `MarketDataClient.resubscribe` asks for.
+export interface OrderBookFrame {
+    symbol?: string;
+    sequence?: number | null;
+    isSnapshot?: boolean;
+    bids?: QuoteLevel[];
+    asks?: QuoteLevel[];
+}
+
+/// One level of a book a control has already accepted: sorted, clipped to the
+/// visible depth and free of the malformed levels a wire frame can carry. Both
+/// fields are present, which is the difference from `QuoteLevel` — everything
+/// that could be absent was dropped on the way in.
+export interface BookLevel {
+    price: number;
+    quantity: number;
+}
+
+/// The grid a venue will accept an order on: the sizes it trades in and the
+/// prices it quotes at. Separate from `InstrumentRow` because it answers a
+/// different question — that one is what an instrument IS, this one is what an
+/// order on it may say — and the two arrive from different endpoints.
+export interface InstrumentSpec {
+    symbol?: string;
+    /// The size an order's quantity must be a whole number of.
+    lotSize?: number | null;
+    /// The smallest price increment the venue quotes.
+    tickSize?: number | null;
+    minVolume?: number | null;
+    /// Absent (or null) means the venue states no upper bound.
+    maxVolume?: number | null;
+}
+
 /// What a control has computed about a symbol from the live tape. Handed to the
 /// host's ticker sink as-is.
 export interface QuoteStats {

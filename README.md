@@ -117,7 +117,7 @@ Two pairs are deliberately separate rather than merged:
   reads the port names (`getExecutions`, `searchInstruments`), which the host
   implements.
 
-### The 52 keys a host has to answer
+### The 114 keys a host has to answer
 
 `t()` cannot fail. A key the host does not know is rendered to the user as
 itself, so `NoActiveOrders` appears in the empty blotter and `ClosePanel`
@@ -126,7 +126,7 @@ error. The complete list ships with the package:
 
 ```ts
 import keys from '@stocksharp/trading-controls/translation-keys.json';
-// { count: 52, keys: ['Actions', 'ActiveOrders', …] }
+// { count: 114, keys: ['Actions', 'ActiveOrders', …] }
 ```
 
 It is **generated from the sources** (`npm run i18n:update`) and re-checked by
@@ -157,7 +157,7 @@ It is split in two so a host does not have to take a palette it disagrees with:
 | `@stocksharp/trading-controls/styles.css` | every rule, reading `var(--t-*)` and declaring none | always |
 | `@stocksharp/trading-controls/theme.css` | a working dark + light palette (`:root`, and `:root[data-bs-theme="light"]`) | only if your page has no `--t-*` tokens of its own |
 
-**The 22 properties a host must supply** if it skips `theme.css`:
+**The 28 properties a host must supply** if it skips `theme.css`:
 
 | group | properties |
 |---|---|
@@ -167,8 +167,18 @@ It is split in two so a host does not have to take a palette it disagrees with:
 | direction | `--t-green` `--t-red` `--t-green-flash` `--t-red-flash` |
 | warning | `--t-orange` (destructive but not a cancel) `--t-warning` (read this) |
 | type and shape | `--t-font` `--t-mono` `--t-radius` `--t-transition` |
+| measured slots | `--t-ob-bar` `--t-ob-heat` `--t-ob-sent` |
 
-All 22 are required — none of them has a fallback baked into the rule that
+The measured slots are the odd group: they are not colours a host picks but
+numbers a control writes. An order-book level's volume bar is a share of the
+largest level beside it and its tint a share of the direction colour, both
+measured per frame from the data — so the control sets them on the element it
+just built and the rules read them back, which keeps the widths and the colours
+in CSS. The declarations in `theme.css` are the "nothing measured yet" defaults;
+a host declaring its own palette can leave them out, because every painted
+element carries its own.
+
+All are required — none of them has a fallback baked into the rule that
 reads it. A `var(--t-orange, #f0b90b)` would keep the rule working on a host
 that never declared the token, which means the host never finds out, and the
 control quietly paints a shade from a palette nobody chose. `--t-orange` and
@@ -223,6 +233,72 @@ found in the data. A quote patches the two affected cells through the grid's
 flash animation it just started. It paints a screenful (`RENDER_CAP`) while the
 export and the subscription sync work over the whole filtered set, and only the
 primary instance reports to the host's ticker.
+
+### `OrderEntryWidget`
+
+A split Buy/Sell pad over one order-type selector: market, limit, stop and stop
+limit, each showing only the price fields it uses. It renders no table — the one
+control here that does not use the grid — and it holds no data source: reference
+prices (`setLimitPrice`, `setBbo`), the venue's size and price grid
+(`setInstrument`) and the balance figures its percent buttons divide
+(`setAvailable`, `setMaxQuantity`) are all pushed in.
+
+Sending is not its half. `TradingApi` is read-only, and the sign-in gate, the
+connection check and the choice of portfolio are the host's, so the pad validates
+against the instrument's grid, collects the column and hands both to the required
+`submitOrder` dep. A form the venue would reject never gets that far: the reason
+takes over the estimate line and the button goes dead.
+
+Everything a host used to reach into it for is a method — `setOrderType`,
+`setPrice`, `setQuantity`, `getInstrument`, `preselect` for the side a
+click-to-trade gesture aimed at, `setEnabled` for a socket that dropped.
+
+### `TradeFeedWidget`
+
+The public tape, in one of two renderings the page shares through the preference
+store: a row per print, or a bubble chart of the same prints — time across,
+price up, volume as the radius, direction as the colour. Prints are pushed in
+(`setTrades`, `addTrade`) because a host fans one socket to every live feed; a
+feed accepts only the symbols it watches, so per-instance pinned extras work
+without a second subscription. Pinning one adds a lane to the chart with its own
+price scale, so a $76k symbol and a $270 one stay legible side by side.
+
+The chart is the one thing here drawn rather than styled, and a canvas takes no
+class names — so its geometry is computed as numbers (`layoutBubbles`,
+`aggregateBubbles`, both exported and both covered without a canvas in sight)
+and its colours come from `presentation.canvasPalette()`. Nothing in it is
+painted from a palette this package chose.
+
+The second tab is the account's own fills, and the only thing this control pulls
+rather than being handed: it asks `trading.api.getExecutions` for the portfolio
+the host names at the moment the tab is opened.
+
+### `OrderBookWidget`
+
+The ladder, in one of two layouts and either side order, each remembered — page
+wide for the instance that follows the host's symbol, per panel for a pinned one.
+Levels are pushed in as `applyFrame`: a snapshot replaces the book, the diffs
+after it carry a per-symbol sequence, and a break in that sequence makes the
+ladder ask `marketData.resubscribe` for a fresh snapshot rather than apply a diff
+to a book it can no longer trust. Everything it refuses on the way in — a level
+with no price, a negative size, a delete for a level it never had, a crossed book
+— goes to `host.log`, because none of it is visible to the user and all of it
+matters to support.
+
+A click reports the level and the side the user would trade (`onPriceSelected`);
+ctrl-click is the same gesture with intent to send (`onPriceExecuted`). Neither
+sends anything itself. The levels this session has size resting on are badged
+from `marketData.getOrders()`, which is a read of what the host already holds
+rather than a second subscription.
+
+Two measurements arrive as deps rather than being read off `window`: `maxDepth()`
+— how many levels this page has room for, which is how a phone gets five instead
+of ten — and `pixelRatio()` for the depth chart's backing store. The chart itself
+is drawn, so its geometry is arithmetic (`orderbook-depth.ts`, covered without a
+canvas) and its colours come from `presentation.canvasPalette()`. Everything else
+is class names: the volume bar's share of its side and the heat behind a level
+reach the stylesheet as measured custom properties (`--t-ob-bar`, `--t-ob-heat`,
+`--t-ob-sent`), so no width and no colour is decided in TypeScript.
 
 ## Exported sheets say what the screen says
 

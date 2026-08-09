@@ -467,3 +467,796 @@
 .wl-chg { text-align: right; font-weight: 600; }
 .wl-chg.up { color: var(--t-green); }
 .wl-chg.down { color: var(--t-red); }
+
+/* --------------------------------------------------------------- order book */
+
+.orderbook-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Every setting the ladder has lives in its header, so the header packs from
+   the left and the two buttons at the end take the room that is left. */
+.orderbook-panel > .panel-header {
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.ob-symbol-label {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--t-text-bright);
+    border-bottom: 1px dashed var(--t-text-dim);
+    padding-bottom: 1px;
+}
+
+.ob-symbol-label:hover {
+    color: var(--t-accent);
+    border-bottom-color: var(--t-accent);
+}
+
+.ob-add-btn { margin-left: auto; }
+
+/* Depth, row layout, side order and the depth chart share one skin, because
+   they are one row of settings rather than four kinds of button. */
+.ob-depth-selector,
+.ob-view-selector {
+    display: flex;
+    gap: 2px;
+}
+
+.btn-ob-depth,
+.btn-ob-view,
+.btn-ob-invert,
+.btn-ob-depthtoggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    background: transparent;
+    border: 1px solid var(--t-border);
+    color: var(--t-text-dim);
+    font-family: var(--t-mono);
+    font-size: 9px;
+    line-height: 1.6;
+    padding: 0 5px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    transition: all var(--t-transition);
+}
+
+.btn-ob-view .bi,
+.btn-ob-invert .bi,
+.btn-ob-depthtoggle .bi { font-size: 11px; line-height: 1; }
+
+.btn-ob-depth:hover,
+.btn-ob-view:hover,
+.btn-ob-invert:hover,
+.btn-ob-depthtoggle:hover { color: var(--t-text); border-color: var(--t-text-dim); }
+
+.btn-ob-depth.active,
+.btn-ob-view.active,
+.btn-ob-invert.active,
+.btn-ob-depthtoggle.active {
+    background: var(--t-accent);
+    color: var(--t-accent-text);
+    border-color: var(--t-accent);
+}
+
+.spread-label { font-weight: 400; font-size: 10px; color: var(--t-text-dim); }
+
+/* The depth curve. Decoration, not interaction, so clicks fall through to the
+   ladder underneath it. */
+.ob-depth-chart {
+    display: block;
+    width: 100%;
+    height: 80px;
+    pointer-events: none;
+    background: transparent;
+}
+
+.ob-hide-depth .ob-depth-chart { display: none; }
+
+/* Captions above the levels, on the same three columns as a row so each one
+   stays over the figures it names. */
+.ob-col-headers {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 4px 8px;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--t-text-dim);
+    background: var(--t-panel);
+    border-bottom: 1px solid var(--t-border);
+}
+
+.ob-col-price { text-align: left; }
+.ob-col-qty,
+.ob-col-total { text-align: right; }
+
+.orderbook-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    font-family: var(--t-mono);
+    font-size: 11px;
+}
+
+/* Natural height, so the best ask sits just above the mid line and the best bid
+   just below it. Centring each block inside its half leaves a dead band above a
+   shallow book. */
+.orderbook-asks,
+.orderbook-bids {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: calc(50% - 12px);
+    overflow-y: auto;
+}
+
+/* One level. The volume bar sits behind the figures, absolutely positioned, so
+   its width does not compete with the grid for room; the tint behind the whole
+   row separates a wall from its neighbours. Both widths are measured per level
+   by the control and arrive as custom properties. */
+.ob-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 1px 8px;
+    line-height: 1.7;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.ob-row.ask { background: color-mix(in srgb, var(--t-red) var(--t-ob-heat), transparent); }
+.ob-row.bid { background: color-mix(in srgb, var(--t-green) var(--t-ob-heat), transparent); }
+.ob-row:hover { background: var(--t-hover); }
+
+.ob-row .price { text-align: left; font-weight: 600; position: relative; z-index: 1; }
+.ob-row .qty { text-align: right; font-weight: 500; color: var(--t-text-dim); position: relative; z-index: 1; }
+.ob-row .total { text-align: right; font-weight: 500; color: var(--t-text-dim); position: relative; z-index: 1; }
+.ob-row.ask .price { color: var(--t-red); }
+.ob-row.bid .price { color: var(--t-green); }
+
+.ob-row .bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: var(--t-ob-bar);
+    opacity: 0.28;
+    z-index: 0;
+    pointer-events: none;
+    transition: width 0.3s ease;
+}
+
+.ob-row.ask .bar {
+    right: 0;
+    background: linear-gradient(to left, color-mix(in srgb, var(--t-red) 55%, transparent), transparent);
+}
+
+.ob-row.bid .bar {
+    left: 0;
+    background: linear-gradient(to right, color-mix(in srgb, var(--t-green) 55%, transparent), transparent);
+}
+
+.ob-row.flash-green { animation: flashGreen 0.5s ease; }
+.ob-row.flash-red { animation: flashRed 0.5s ease; }
+
+/* A level this session has size resting on: a stripe down the outside of the
+   row, and the resting quantity inside the size cell. */
+.ob-row.own.bid { box-shadow: inset 3px 0 0 var(--t-green); }
+.ob-row.own.ask { box-shadow: inset -3px 0 0 var(--t-red); }
+
+.ob-row .own-badge {
+    display: inline-block;
+    margin: 0 4px;
+    padding: 0 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--t-text-bright) 8%, transparent);
+    color: var(--t-text);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.orderbook-mid {
+    position: relative;
+    text-align: center;
+    padding: 4px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: -0.3px;
+    color: var(--t-text-bright);
+    background: var(--t-bg);
+    border-top: 1px solid var(--t-border);
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+}
+
+.ob-mid-price { font-weight: inherit; }
+
+/* The spread reads to the right of the divider while the mid price stays
+   centred on it. */
+.ob-mid-spread {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 400;
+    font-size: 10px;
+    letter-spacing: 0;
+    color: var(--t-text-dim);
+}
+
+/* Diagonal layout — the classic two-sided book. Same three columns, but the
+   size cell moves to the outside of each side with the price centred between
+   them; the cumulative column and the captions go, because neither reads
+   unambiguously once the two sides are mirrored. */
+.orderbook-panel.ob-view-diagonal .ob-row { grid-template-areas: "left center right"; }
+.orderbook-panel.ob-view-diagonal .ob-row .price { grid-area: center; text-align: center; }
+.orderbook-panel.ob-view-diagonal .ob-row.ask .qty { grid-area: left; text-align: left; }
+.orderbook-panel.ob-view-diagonal .ob-row.bid .qty { grid-area: right; text-align: right; }
+.orderbook-panel.ob-view-diagonal .ob-row .total { display: none; }
+.orderbook-panel.ob-view-diagonal .ob-col-headers { display: none; }
+
+/* Stacked is the layout the rules above already describe; naming it is what
+   lets a panel switch back out of diagonal. */
+.orderbook-panel.ob-view-stacked .ob-row { grid-template-areas: none; }
+
+/* Inverted sides — the bid block floats above the mid line. Each block reverses
+   internally as well, so the levels nearest the spread stay nearest the mid
+   line in both orders. */
+.orderbook-panel.ob-invert .orderbook-content { flex-direction: column-reverse; }
+.orderbook-panel.ob-invert .orderbook-asks,
+.orderbook-panel.ob-invert .orderbook-bids { flex-direction: column-reverse; }
+
+/* Buy-versus-sell strip along the bottom. One measured property splits it — the
+   bid half takes it, the ask half takes what is left — so the two can never
+   disagree about how much of the strip is spoken for. */
+.ob-sentiment {
+    display: flex;
+    height: 18px;
+    font-size: 10px;
+    font-weight: 600;
+    border-top: 1px solid var(--t-border);
+    overflow: hidden;
+    /* Informational, so it never squeezes the levels above it. */
+    flex: 0 0 18px;
+}
+
+.ob-sent-bid,
+.ob-sent-ask {
+    text-align: center;
+    line-height: 18px;
+    overflow: hidden;
+    white-space: nowrap;
+    color: var(--t-text-bright);
+    transition: width 0.3s ease;
+}
+
+.ob-sent-bid {
+    width: var(--t-ob-sent);
+    background: color-mix(in srgb, var(--t-green) 55%, transparent);
+}
+
+.ob-sent-ask {
+    width: calc(100% - var(--t-ob-sent));
+    background: color-mix(in srgb, var(--t-red) 55%, transparent);
+}
+
+.ob-sent-label { opacity: 0.85; margin: 0 4px; }
+
+/* Tabular figures, so a percentage ticking between 9% and 10% does not shove
+   the letter beside it sideways. */
+.ob-sent-bid-pct,
+.ob-sent-ask-pct { font-variant-numeric: tabular-nums; }
+
+/* On a phone the ladder is most of the screen, so the settings that only tune
+   it step aside and the rows tighten. What actually shortens the book is the
+   host answering a smaller `maxDepth()`; this makes the rows that remain fit. */
+@media (max-width: 768px), (max-height: 500px) {
+    .ob-depth-selector,
+    .ob-view-selector,
+    .ob-symbol-label { display: none; }
+
+    .orderbook-content { justify-content: center; }
+    .orderbook-asks,
+    .orderbook-bids { overflow-y: hidden; }
+    .orderbook-content .ob-row { line-height: 1.4; padding: 0 6px; font-size: 10px; }
+    .orderbook-content .orderbook-mid { padding: 2px 6px; font-size: 12px; }
+}
+
+/* --------------------------------------------------------------- trade feed */
+
+/* The panel is the tooltip's containing block: the bubble tooltip is placed in
+   canvas coordinates and would otherwise anchor to the page. */
+.tradefeed-panel {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Market / My trades. Two panes and one canvas share the body, and which of
+   them is showing is two class names the control puts on the root — so the
+   rules below are the whole of that decision, and a narrow viewport can
+   override it further down without the control being told. */
+.tf-tab-market .tf-my,
+.tf-tab-my .tf-market,
+.tf-tab-my .tf-bubbles,
+.tf-tab-my .tf-view-toggle,
+.tf-tab-market.tf-view-bubbles .tf-market,
+.tf-tab-market.tf-view-list .tf-bubbles { display: none; }
+
+.tf-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 2px 8px;
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+}
+
+.tf-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--t-text-dim);
+    font-family: var(--t-font);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 2px 8px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    transition: all var(--t-transition);
+}
+
+.tf-tab:hover { color: var(--t-text-bright); }
+
+.tf-tab.active {
+    color: var(--t-accent);
+    border-bottom-color: var(--t-accent);
+}
+
+/* List of prints. Scrolls on its own so the header, the tab strip and the
+   pinned-extras ribbon stay put. */
+.tradefeed-content {
+    flex: 1;
+    overflow-y: auto;
+    font-family: var(--t-mono);
+    font-size: 11px;
+    min-height: 0;
+}
+
+.tradefeed-content .empty-state {
+    padding: 12px 8px;
+    text-align: center;
+    color: var(--t-text-dim);
+}
+
+/* One print. The four-column grid becomes five when a symbol column is
+   showing, which is what `tf-row-multi` is for. */
+.tf-row {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr) 38px;
+    column-gap: 8px;
+    padding: 1px 8px;
+    line-height: 1.7;
+    transition: background var(--t-transition);
+}
+
+.tf-row.tf-row-multi {
+    grid-template-columns: 58px 70px minmax(0, 1fr) minmax(0, 1fr) 38px;
+}
+
+.tf-row .price,
+.tf-row .qty,
+.tf-row .sym { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The direction class the host answered with sits on the row, so the price and
+   the side inherit its colour while the two columns below state their own. */
+.tf-row .time { color: var(--t-text-dim); }
+.tf-row .qty { text-align: right; color: var(--t-text-dim); }
+.tf-row .sym { color: var(--t-text-bright); font-weight: 600; font-size: 11px; }
+.tf-row .price { text-align: right; font-weight: 500; }
+.tf-row .side { text-align: right; font-weight: 600; font-size: 10px; }
+
+/* A print that just landed, and one well above the recent average size. */
+.tf-row.flash-new { animation: flashGreen 0.6s ease; }
+.tf-row.side-sell.flash-new { animation: flashRed 0.6s ease; }
+.tf-row.large-trade { font-size: 12px; font-weight: 600; }
+.tf-row.large-trade .qty { color: var(--t-text-bright); }
+
+/* List | bubbles, in the panel header. */
+.tradefeed-view-toggle {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.tradefeed-view-toggle .tf-view-btn {
+    background: transparent;
+    border: 1px solid var(--t-border);
+    color: var(--t-text-dim);
+    padding: 1px 6px;
+    height: 18px;
+    line-height: 1;
+    font-size: 10px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    transition: all var(--t-transition);
+}
+
+.tradefeed-view-toggle .tf-view-btn:hover {
+    color: var(--t-text-bright);
+    border-color: var(--t-text-dim);
+}
+
+.tradefeed-view-toggle .tf-view-btn.active {
+    background: var(--t-accent);
+    color: var(--t-accent-text);
+    border-color: var(--t-accent);
+}
+
+/* Pinned extras — one chip per instrument this feed watches on top of the
+   page's own. Absent from the markup until there is one. */
+.tf-extras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+}
+
+.tf-extras[hidden] { display: none; }
+
+.tf-extra-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t-text-bright);
+    background: var(--t-hover);
+    border: 1px solid var(--t-border);
+    border-radius: 10px;
+}
+
+.tf-extra-sym { letter-spacing: 0.3px; }
+
+.tf-extra-rm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    line-height: 1;
+    color: var(--t-text-dim);
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.tf-extra-rm i { font-size: 10px; }
+
+.tf-extra-rm:hover {
+    color: var(--t-red);
+    background: color-mix(in srgb, var(--t-red) 12%, transparent);
+}
+
+/* The bubble chart. Takes whatever height is left below the chrome, full
+   width; the control sizes its backing store to the device's pixels. */
+.tradefeed-bubbles {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    display: block;
+}
+
+/* Placed by the control in canvas coordinates, which is why this is the one
+   thing here carrying a `left` / `top` it does not declare. */
+.tf-bubble-tooltip {
+    position: absolute;
+    z-index: 20;
+    min-width: 120px;
+    padding: 6px 8px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    font-family: var(--t-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--t-text-bright);
+    pointer-events: none;
+}
+
+.tf-bubble-tooltip[hidden] { display: none; }
+.tf-bbtt-row { display: flex; justify-content: space-between; gap: 12px; }
+.tf-bbtt-label { color: var(--t-text-dim); }
+.tf-bbtt-value { font-weight: 600; }
+
+/* A phone has no room for two renderings of the same tape, or for a second
+   instrument pinned beside the first: the list wins and the rest steps aside.
+   Later in the file than the state rules above, and at the same specificity,
+   so it overrides them whatever the control's own state says. */
+@media (max-width: 768px), (max-height: 500px) {
+    .tf-tab-market.tf-view-bubbles .tf-market { display: block; }
+    .tradefeed-panel .tf-bubbles,
+    .tradefeed-panel .tf-view-toggle,
+    .tradefeed-panel .tf-extras,
+    .tradefeed-panel .tf-add-symbol-btn { display: none; }
+}
+
+/* ----------------------------------------------------------- order entry */
+
+.order-entry-content {
+    padding: 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: 6px;
+    /* Backstop for viewports and locales whose labels push the form past the
+       height the panel was given. */
+    overflow-y: auto;
+}
+
+/* Nothing can be sent while the host says the account is out of reach. The form
+   says so by going quiet rather than by disappearing, so the numbers in it stay
+   readable. */
+.order-entry-content.oe-offline {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Two pairs of type buttons, so each pair sits over the column it applies to:
+   the outer gap matches the column gap and the inner one is tighter. */
+.order-type-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.ot-pair {
+    display: flex;
+    gap: 4px;
+    min-width: 0;
+}
+
+.btn-ot {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    background: transparent;
+    border: 1px solid var(--t-border);
+    color: var(--t-text-dim);
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    transition: all var(--t-transition);
+    font-family: var(--t-font);
+    min-width: 0;
+}
+
+.btn-ot.active { background: var(--t-accent); color: var(--t-accent-text); border-color: var(--t-accent); }
+.btn-ot:hover:not(.active) { background: var(--t-hover); color: var(--t-text); border-color: var(--t-text-dim); }
+
+.order-entry-split {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.oe-col {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px 8px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    min-width: 0;
+}
+
+/* The direction shows at the edge only. The submit button carries the full
+   colour, and two saturated panels side by side read as an alarm. */
+.oe-col-buy { border-color: color-mix(in srgb, var(--t-green) 25%, transparent); }
+.oe-col-sell { border-color: color-mix(in srgb, var(--t-red) 25%, transparent); }
+
+.oe-label {
+    font-size: 10px;
+    color: var(--t-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-family: var(--t-font);
+}
+
+.oe-value {
+    font-family: var(--t-mono);
+    font-size: 11px;
+    color: var(--t-text);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.oe-avbl,
+.oe-total,
+.oe-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 10px;
+}
+
+.oe-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+/* A field the current order type does not use, and the take-profit block while
+   it is switched off. The control toggles this class rather than a display
+   style, so what a field looks like when it is away stays here. */
+.oe-field-hidden { display: none; }
+
+.oe-input-grp {
+    display: flex;
+    gap: 4px;
+    align-items: stretch;
+}
+
+.oe-input-grp .oe-input { flex: 1; min-width: 0; }
+
+.oe-input {
+    background: var(--t-bg);
+    border: 1px solid var(--t-border);
+    color: var(--t-text-bright);
+    font-family: var(--t-mono);
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: var(--t-radius);
+    transition: border-color var(--t-transition);
+    width: 100%;
+    min-width: 0;
+}
+
+.oe-input:focus {
+    outline: none;
+    border-color: var(--t-accent);
+    box-shadow: 0 0 0 2px var(--t-accent-glow-soft);
+}
+
+.btn-bbo {
+    background: var(--t-bg);
+    border: 1px solid var(--t-border);
+    color: var(--t-text-dim);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0 8px;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    font-family: var(--t-font);
+    transition: all var(--t-transition);
+}
+
+.btn-bbo:hover {
+    color: var(--t-accent-text);
+    background: var(--t-accent);
+    border-color: var(--t-accent);
+}
+
+.oe-pct-row {
+    display: flex;
+    gap: 3px;
+}
+
+.btn-oe-pct {
+    flex: 1;
+    padding: 2px 0;
+    font-size: 10px;
+    font-weight: 500;
+    font-family: var(--t-mono);
+    background: var(--t-bg);
+    border: 1px solid var(--t-border);
+    color: var(--t-text-dim);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all var(--t-transition);
+}
+
+.btn-oe-pct:hover {
+    background: var(--t-hover);
+    color: var(--t-text-bright);
+}
+
+.oe-tpsl-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--t-text-dim);
+    cursor: pointer;
+    user-select: none;
+    font-family: var(--t-font);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.oe-tpsl {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+    border-top: 1px dashed var(--t-border);
+}
+
+/* Pushed to the bottom of the column, so both buttons line up however tall the
+   two forms above them ended up. */
+.btn-oe-submit {
+    margin-top: auto;
+    flex: none;
+    padding: 10px 6px;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    border: none;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    color: var(--t-on-direction);
+    transition: all var(--t-transition);
+    font-family: var(--t-font);
+    letter-spacing: 0.3px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-oe-submit.btn-buy { background: var(--t-green); }
+.btn-oe-submit.btn-buy:hover { background: var(--t-green-hover); box-shadow: 0 0 12px color-mix(in srgb, var(--t-green) 30%, transparent); }
+.btn-oe-submit.btn-sell { background: var(--t-red); }
+.btn-oe-submit.btn-sell:hover { background: var(--t-red-hover); box-shadow: 0 0 12px color-mix(in srgb, var(--t-red) 30%, transparent); }
+.btn-oe-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-oe-submit:active { transform: scale(0.97); }
+
+/* The side a host-level gesture aimed at — a click on a book level, a chart
+   price. A ring rather than a colour change: the button already says which
+   direction it is. */
+.btn-oe-submit.btn-buy.btn-preselected { box-shadow: 0 0 0 2px var(--t-green), 0 0 12px color-mix(in srgb, var(--t-green) 30%, transparent); }
+.btn-oe-submit.btn-sell.btn-preselected { box-shadow: 0 0 0 2px var(--t-red), 0 0 12px color-mix(in srgb, var(--t-red) 30%, transparent); }
+
+.hotkey-hint {
+    font-size: 9px;
+    font-weight: 400;
+    opacity: 0.6;
+    margin-left: 4px;
+    font-family: var(--t-mono);
+}
+
+/* The order's value, and the reason it cannot be sent, in the same line: they
+   are never both true, and giving them one line keeps the button from moving
+   when a message appears. */
+.oe-estimate {
+    font-size: 10px;
+    font-family: var(--t-mono);
+    color: var(--t-text-dim);
+    min-height: 12px;
+    text-align: center;
+}
+
+.oe-estimate.oe-estimate-error { color: var(--t-red); }

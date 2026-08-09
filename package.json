@@ -73,6 +73,18 @@
       "types": "./dist/types/watchlist-widget.d.ts",
       "import": "./dist/esm/watchlist-widget.js"
     },
+    "./order-entry-widget": {
+      "types": "./dist/types/order-entry-widget.d.ts",
+      "import": "./dist/esm/order-entry-widget.js"
+    },
+    "./orderbook-widget": {
+      "types": "./dist/types/orderbook-widget.d.ts",
+      "import": "./dist/esm/orderbook-widget.js"
+    },
+    "./tradefeed-widget": {
+      "types": "./dist/types/tradefeed-widget.d.ts",
+      "import": "./dist/esm/tradefeed-widget.js"
+    },
     "./source": "./src/index.ts",
     "./source/trading-host": "./src/trading-host.ts",
     "./source/control-types": "./src/control-types.ts",
@@ -82,6 +94,9 @@
     "./source/trade-history-widget": "./src/trade-history-widget.ts",
     "./source/active-orders-widget": "./src/active-orders-widget.ts",
     "./source/watchlist-widget": "./src/watchlist-widget.ts",
+    "./source/order-entry-widget": "./src/order-entry-widget.ts",
+    "./source/orderbook-widget": "./src/orderbook-widget.ts",
+    "./source/tradefeed-widget": "./src/tradefeed-widget.ts",
     "./styles.css": "./styles/trading-controls.css",
     "./theme.css": "./styles/theme.css",
     "./translation-keys.json": "./translation-keys.json",

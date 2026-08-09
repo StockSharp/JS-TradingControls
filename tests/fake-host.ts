@@ -47,6 +47,10 @@ export const testPresentation: TradingPresentation = {
         return String(side);
     },
 
+    isBuy(side: OrderSide) {
+        return side === 0 || side === 'Buy' || side === 'BUY';
+    },
+
     typeText(type: OrderType, limitPrice: number, stopPrice: number) {
         if (type === 0 || type === 'Limit') return 'LMT';
         if (type === 1 || type === 'Market') return 'MKT';
@@ -69,6 +73,13 @@ export const testPresentation: TradingPresentation = {
         if (pnl == null) return '';
         return Number(pnl) >= 0 ? 'pnl-positive' : 'pnl-negative';
     },
+
+    // Deliberately unlike the two token colours a real host would answer with:
+    // a control that painted a literal of its own would still look plausible on
+    // screen, and would be caught here.
+    canvasPalette() {
+        return { up: 'test-up', down: 'test-down', grid: 'test-grid', font: 'test-font' };
+    },
 };
 
 /// The port's member names, for the "a missing member is named" test.
@@ -84,8 +95,8 @@ export const HOST_MEMBERS = [
 /// cannot see. Paths, so the test can delete one and read the name back out of
 /// the error.
 export const HOST_NESTED_MEMBERS = [
-    'presentation.sideText', 'presentation.typeText', 'presentation.statusText',
-    'presentation.sideClass', 'presentation.pnlClass',
+    'presentation.sideText', 'presentation.isBuy', 'presentation.typeText', 'presentation.statusText',
+    'presentation.sideClass', 'presentation.pnlClass', 'presentation.canvasPalette',
     'preferences.get', 'preferences.set',
     'cache.get', 'cache.set',
     'trading.api', 'trading.api.getExecutions', 'trading.api.searchInstruments',

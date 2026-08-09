@@ -57,6 +57,9 @@ export declare const ControlTypes: {
     readonly ActiveOrders: "activeOrders";
     readonly TradeHistory: "tradeHistory";
     readonly Positions: "positions";
+    readonly OrderBook: "orderbook";
+    readonly TradeFeed: "tradefeed";
+    readonly OrderEntry: "orderEntry";
 };
 export type ControlType = typeof ControlTypes[keyof typeof ControlTypes];
 
@@ -92,6 +95,232 @@ export { TradeHistoryWidget } from './trade-history-widget.js';
 export type { TradeHistoryDeps } from './trade-history-widget.js';
 export { WatchlistWidget } from './watchlist-widget.js';
 export type { WatchlistDeps } from './watchlist-widget.js';
+export { OrderEntrySides, OrderEntryTypes, OrderEntryWidget } from './order-entry-widget.js';
+export type { OrderEntryDeps, OrderEntrySide, OrderEntryType, OrderEntryValues } from './order-entry-widget.js';
+export type { InstrumentSpec } from './trading-data.js';
+export { OrderBookWidget } from './orderbook-widget.js';
+export type { OrderBookDeps, OrderBookView } from './orderbook-widget.js';
+export type { BookLevel, OrderBookFrame, QuoteLevel } from './trading-data.js';
+export type { CanvasPalette } from './trading-host.js';
+export { TradeFeedWidget } from './tradefeed-widget.js';
+export type { TradeFeedDeps } from './tradefeed-widget.js';
+export { aggregateBubbles } from './tradefeed-aggregator.js';
+export type { FeedBubble, FeedTick } from './tradefeed-aggregator.js';
+export { layoutBubbles } from './tradefeed-bubbles.js';
+export type { BubbleAxisTick, BubbleLane, BubbleLaneShape, BubbleLayout, BubbleLayoutInput, BubbleShape } from './tradefeed-bubbles.js';
+
+// FILE: order-entry-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import type { InstrumentSpec } from './trading-data.js';
+export declare const OrderEntrySides: {
+    readonly Buy: "buy";
+    readonly Sell: "sell";
+};
+export type OrderEntrySide = typeof OrderEntrySides[keyof typeof OrderEntrySides];
+export declare const OrderEntryTypes: {
+    readonly Market: "market";
+    readonly Limit: "limit";
+    readonly Stop: "stop";
+    readonly StopLimit: "stoplimit";
+};
+export type OrderEntryType = typeof OrderEntryTypes[keyof typeof OrderEntryTypes];
+export interface OrderEntryValues {
+    type: OrderEntryType;
+    quantity: number;
+    limitPrice: number | null;
+    stopPrice: number | null;
+    takeProfit: number | null;
+    stopLoss: number | null;
+}
+export interface OrderEntryDeps {
+    host: TradingHost;
+    submitOrder(side: OrderEntrySide, values: OrderEntryValues): void;
+}
+export declare class OrderEntryWidget {
+    static TYPE: "orderEntry";
+    static SIDES: readonly OrderEntrySide[];
+    rootEl: HTMLElement;
+    el: HTMLElement | null;
+    _host: TradingHost;
+    _deps: OrderEntryDeps;
+    _closeBtn: HTMLElement | null;
+    _cols: Record<OrderEntrySide, HTMLElement | null>;
+    _orderType: OrderEntryType;
+    _instrument: InstrumentSpec | null;
+    _lastPrice: number;
+    _bestBid: number;
+    _bestAsk: number;
+    _maxQuantity: Record<OrderEntrySide, number | null>;
+    _focused: HTMLElement | null;
+    _enabled: boolean;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OrderEntryDeps): OrderEntryWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    static _buildTypeTabs(host: TradingHost): HTMLElement;
+    static _buildColumn(host: TradingHost, side: OrderEntrySide): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: OrderEntryDeps);
+    dispose(): void;
+    get orderType(): OrderEntryType;
+    getInstrument(): InstrumentSpec | null;
+    setOrderType(type: OrderEntryType): void;
+    setInstrument(instrument: InstrumentSpec | null): void;
+    setAvailable(side: OrderEntrySide, available: number | null): void;
+    setMaxQuantity(side: OrderEntrySide, max: number | null): void;
+    setLimitPrice(price: number): void;
+    seedLimitPrice(price: number): void;
+    setBbo(bid: number, ask: number): void;
+    applyBbo(side: OrderEntrySide): void;
+    setPrice(side: OrderEntrySide, price: number): void;
+    setQuantity(quantity: number): void;
+    applyPercent(side: OrderEntrySide, pct: number): void;
+    toggleTpSl(side: OrderEntrySide, on: boolean): void;
+    preselect(side: OrderEntrySide | null): void;
+    setEnabled(enabled: boolean): void;
+    submit(side: OrderEntrySide): void;
+    getValues(side: OrderEntrySide): OrderEntryValues;
+    validate(side: OrderEntrySide): string | null;
+    static toApiType(uiType: OrderEntryType | string): number;
+    static _isMultipleOf(value: number, step: number): boolean;
+    static _formatQty(n: number): string;
+    static _decimals(n: number): number;
+    _bindTypeTabs(): void;
+    _bindColumn(side: OrderEntrySide): void;
+    _applyTypeVisibility(): void;
+    _show(element: HTMLElement | null, visible: boolean): void;
+    _writePrices(buyPrice: number, sellPrice: number, reset: boolean): void;
+    _writePrice(side: OrderEntrySide, price: number, reset: boolean): void;
+    _formatPriceForInput(price: number): string;
+    _recalculate(side: OrderEntrySide): void;
+    _updateEstimate(side: OrderEntrySide): void;
+    _validateSide(side: OrderEntrySide): void;
+    _input(side: OrderEntrySide, selector: string): HTMLInputElement | null;
+    _number(side: OrderEntrySide, selector: string): number | null;
+}
+
+// FILE: orderbook-depth.d.ts
+import type { BookLevel } from './trading-data.js';
+export interface DepthGeometry {
+    midX: number;
+    pad: number;
+    halfWidth: number;
+    baseY: number;
+    innerHeight: number;
+}
+export interface DepthPoint {
+    x: number;
+    cumulative: number;
+}
+export interface DepthSide {
+    points: DepthPoint[];
+    total: number;
+}
+export declare function depthSide(levels: BookLevel[], direction: 1 | -1, geometry: DepthGeometry): DepthSide | null;
+export declare function depthPolyline(side: DepthSide, maxTotal: number, geometry: DepthGeometry): [number, number][];
+
+// FILE: orderbook-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import type { BookLevel, OrderBookFrame, QuoteLevel } from './trading-data.js';
+import { type DepthGeometry } from './orderbook-depth.js';
+export interface OrderBookDeps {
+    host: TradingHost;
+    onPriceSelected(price: number, side: number): void;
+    onPriceExecuted(price: number, side: number): void;
+    maxDepth(): number;
+    pixelRatio(): number;
+}
+export type OrderBookView = 'diagonal' | 'stacked';
+export declare class OrderBookWidget {
+    static TYPE: "orderbook";
+    static DEPTHS: readonly number[];
+    static DEPTH_KEY: string;
+    static VIEW_KEY: string;
+    static INVERT_KEY: string;
+    static DEPTHCHART_KEY: string;
+    rootEl: HTMLElement;
+    asksEl: HTMLElement | null;
+    bidsEl: HTMLElement | null;
+    midEl: HTMLElement | null;
+    spreadEl: HTMLElement | null;
+    contentEl: HTMLElement | null;
+    depthChartEl: HTMLCanvasElement | null;
+    _host: TradingHost;
+    _deps: OrderBookDeps;
+    _midSpreadEl: HTMLElement | null;
+    _sentimentEl: HTMLElement | null;
+    _sentBidPctEl: HTMLElement | null;
+    _sentAskPctEl: HTMLElement | null;
+    _symbolLabel: HTMLElement | null;
+    _depthBtns: HTMLElement[];
+    _viewBtns: HTMLElement[];
+    _invertBtn: HTMLElement | null;
+    _depthToggleBtn: HTMLElement | null;
+    _addBtn: HTMLElement | null;
+    _closeBtn: HTMLElement | null;
+    _prevQuantities: Map<string, number>;
+    _depth: number;
+    _view: OrderBookView;
+    _invertSides: boolean;
+    _showDepthChart: boolean;
+    _bidsByPrice: Map<number, number>;
+    _asksByPrice: Map<number, number>;
+    _lastSequence: number;
+    _currentSymbol: string | null;
+    _followsActive: boolean;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OrderBookDeps): OrderBookWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, state: Record<string, unknown>, deps: OrderBookDeps);
+    dispose(): void;
+    setSymbol(symbol: string): void;
+    getSymbol(): string | null;
+    getDepth(): number;
+    isFollowsActive(): boolean;
+    getBids(): BookLevel[];
+    getAsks(): BookLevel[];
+    setDepth(depth: number): void;
+    setView(view: OrderBookView): void;
+    setInvertSides(invert: boolean): void;
+    setShowDepthChart(show: boolean): void;
+    applyFrame(frame: OrderBookFrame): void;
+    _wireHeader(): void;
+    _wireBookClicks(): void;
+    _refreshDepthButtons(): void;
+    _refreshViewButtons(): void;
+    _refreshInvertButton(): void;
+    _refreshDepthToggleButton(): void;
+    _applyViewState(): void;
+    _persistState(patch: Record<string, unknown>): void;
+    _resetLedger(): void;
+    _fitDepth(depth: number): number;
+    static _isDepth(depth: unknown): depth is number;
+    static _deepest(): number;
+    static _sorted(ledger: Map<number, number>, direction: 1 | -1): BookLevel[];
+    _applySnapshotSide(ledger: Map<number, number>, levels: QuoteLevel[] | undefined, side: string, symbol: string, sequence: number): void;
+    _applyDiffSide(ledger: Map<number, number>, levels: QuoteLevel[] | undefined, side: string, symbol: string, sequence: number): void;
+    _validateBookCross(symbol: string, sequence: number, wasSnapshot: boolean): void;
+    _requestResubscribe(symbol: string): Promise<void>;
+    _anomaly(message: string): void;
+    _render(): void;
+    _paint(bids: BookLevel[], asks: BookLevel[]): void;
+    _levelRow(level: BookLevel, options: {
+        rowClass: string;
+        orderSide: string;
+        key: string;
+        cumulative: number;
+        barPct: number;
+        heatPct: number;
+        growthClass: string;
+        shrinkClass: string;
+        ownQuantity: number | undefined;
+        painted: Map<string, number>;
+    }): HTMLElement;
+    _ownQuantities(): {
+        bids: Map<string, number>;
+        asks: Map<string, number>;
+    };
+    static _priceKey(price: number): string;
+    _paintSentiment(bids: BookLevel[], asks: BookLevel[]): void;
+    _paintDepthChart(bids: BookLevel[], asks: BookLevel[]): void;
+    _strokeDepthSide(ctx: CanvasRenderingContext2D, line: [number, number][], color: string, geometry: DepthGeometry, ratio: number): void;
+}
 
 // FILE: positions-widget.d.ts
 import { TradingHost } from './trading-host.js';
@@ -157,6 +386,135 @@ export declare class TradeHistoryWidget {
     _columns(): GridColumn<TradeRow>[];
 }
 
+// FILE: tradefeed-aggregator.d.ts
+import type { OrderSide } from './trading-data.js';
+export interface FeedTick {
+    symbol: string;
+    side: OrderSide;
+    buy: boolean;
+    price: number;
+    quantity: number;
+    time: string;
+    index: number;
+}
+export interface FeedBubble extends FeedTick {
+    count: number;
+}
+export declare function aggregateBubbles(ticks: FeedTick[], maxBucketsPerSide: number): FeedBubble[];
+
+// FILE: tradefeed-bubbles.d.ts
+import { type FeedBubble, type FeedTick } from './tradefeed-aggregator.js';
+export interface BubbleLane {
+    symbol: string;
+    ticks: FeedTick[];
+}
+export interface BubbleLayoutInput {
+    width: number;
+    height: number;
+    lanes: BubbleLane[];
+    total: number;
+}
+export interface BubbleShape {
+    x: number;
+    y: number;
+    radius: number;
+    bubble: FeedBubble;
+}
+export interface BubbleAxisTick {
+    text: string;
+    y: number;
+}
+export interface BubbleLaneShape {
+    symbol: string;
+    label: {
+        x: number;
+        y: number;
+    } | null;
+    separatorY: number | null;
+    ticks: BubbleAxisTick[];
+}
+export interface BubbleLayout {
+    axisX: number;
+    labelX: number;
+    lanes: BubbleLaneShape[];
+    bubbles: BubbleShape[];
+}
+export declare function layoutBubbles(input: BubbleLayoutInput): BubbleLayout;
+export declare function priceFormatter(min: number, max: number): (price: number) => string;
+
+// FILE: tradefeed-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import type { TradeRow } from './trading-data.js';
+import type { FeedBubble, FeedTick } from './tradefeed-aggregator.js';
+import { type BubbleLane, type BubbleShape } from './tradefeed-bubbles.js';
+export interface TradeFeedDeps {
+    host: TradingHost;
+}
+export declare class TradeFeedWidget {
+    static TYPE: "tradefeed";
+    static VIEW_KEY: string;
+    static MAX_ROWS: number;
+    static MAX_BUBBLES: number;
+    rootEl: HTMLElement;
+    marketEl: HTMLElement | null;
+    myEl: HTMLElement | null;
+    extrasEl: HTMLElement | null;
+    bubbleCanvas: HTMLCanvasElement | null;
+    trades: TradeRow[];
+    bubbleTrades: TradeRow[];
+    myTrades: TradeRow[];
+    avgQty: number;
+    tab: string;
+    view: string;
+    _host: TradingHost;
+    _tabsEl: HTMLElement | null;
+    _viewToggleEl: HTMLElement | null;
+    _tooltipEl: HTMLElement | null;
+    _addBtn: HTMLElement | null;
+    _closeBtn: HTMLElement | null;
+    _addSymbolBtn: HTMLElement | null;
+    _bubbleCtx: CanvasRenderingContext2D | null;
+    _bubbleHits: BubbleShape[];
+    _canvasSize: {
+        width: number;
+        height: number;
+    } | null;
+    _resizeObserver: ResizeObserver | null;
+    _activeSymbol: string | null;
+    _extraSymbols: Set<string>;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps): TradeFeedWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps);
+    dispose(): void;
+    setActiveSymbol(symbol: string | null): void;
+    setTrades(trades: TradeRow[]): void;
+    addTrade(trade: TradeRow): void;
+    loadMyTrades(portfolioId: number | null, symbol: string | null): Promise<void>;
+    addExtraSymbol(symbol: string): Promise<void>;
+    removeExtraSymbol(symbol: string): Promise<void>;
+    getExtraSymbols(): string[];
+    _persistExtras(): void;
+    _watches(symbol: string | undefined): boolean;
+    _createRow(trade: TradeRow, isNew: boolean): HTMLElement;
+    _renderMarket(): void;
+    _renderMy(): void;
+    _renderExtras(): void;
+    _bindTabs(): void;
+    _selectTab(tab: string): void;
+    _bindViewToggle(): void;
+    _applyView(): void;
+    _sizeCanvas(): void;
+    _feedTicks(): FeedTick[];
+    _lanes(ticks: FeedTick[]): BubbleLane[];
+    _renderBubbles(): void;
+    static _rule(ctx: CanvasRenderingContext2D, from: number, to: number, y: number): void;
+    _bindBubbleHover(): void;
+    _hitTest(x: number, y: number): BubbleShape | null;
+    _showTooltip(bubble: FeedBubble, x: number, y: number): void;
+    _tooltipLine(label: string, value: string, valueClass: string): HTMLElement;
+    _hideTooltip(): void;
+}
+
 // FILE: trading-data.d.ts
 export type OrderSide = number | string;
 export type OrderType = number | string;
@@ -207,6 +565,28 @@ export interface InstrumentRow {
     exchange?: string;
     category?: string;
 }
+export interface QuoteLevel {
+    price?: number | null;
+    quantity?: number | null;
+}
+export interface OrderBookFrame {
+    symbol?: string;
+    sequence?: number | null;
+    isSnapshot?: boolean;
+    bids?: QuoteLevel[];
+    asks?: QuoteLevel[];
+}
+export interface BookLevel {
+    price: number;
+    quantity: number;
+}
+export interface InstrumentSpec {
+    symbol?: string;
+    lotSize?: number | null;
+    tickSize?: number | null;
+    minVolume?: number | null;
+    maxVolume?: number | null;
+}
 export interface QuoteStats {
     lastPrice?: number | null;
     baseline?: number | null;
@@ -215,12 +595,20 @@ export interface QuoteStats {
 
 // FILE: trading-host.d.ts
 import type { InstrumentRow, OrderRow, OrderSide, OrderStatus, OrderType, QuoteStats, TradeRow } from './trading-data.js';
+export interface CanvasPalette {
+    up: string;
+    down: string;
+    grid: string;
+    font: string;
+}
 export interface TradingPresentation {
     sideText(side: OrderSide): string;
+    isBuy(side: OrderSide): boolean;
     typeText(type: OrderType, limitPrice: number, stopPrice: number): string;
     statusText(status: OrderStatus): string;
     sideClass(side: OrderSide): string;
     pnlClass(pnl: number): string;
+    canvasPalette(): CanvasPalette;
 }
 export declare const PRESENTATION_CLASSES: {
     readonly sideClass: readonly ["side-buy", "side-sell"];

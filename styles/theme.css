@@ -40,12 +40,33 @@
     --t-red: #f6465d;
     --t-green-flash: rgba(14, 203, 129, 0.25);
     --t-red-flash: rgba(246, 70, 93, 0.25);
+    /* Pressed/hovered shades of the two directions, for a control that fills a
+       whole button with one of them rather than tinting text. */
+    --t-green-hover: #0bb974;
+    --t-red-hover: #e03e53;
+    /* Text ON a direction-filled surface. Not --t-text-bright: that one follows
+       the scheme, and both fills stay dark enough for white in either. */
+    --t-on-direction: #ffffff;
 
     /* Warnings. Two shades on purpose: --t-orange marks an action that is
        destructive but not a cancel (reverse a position), --t-warning marks
        information the user should read (a rejection reason). */
     --t-orange: #f0b90b;
     --t-warning: #e0a800;
+
+    /* Measured slots, not palette knobs.
+     *
+     * A ladder's volume bar is a share of the largest level beside it and its
+     * tint is a share of the direction colour — both measured per level, per
+     * frame, from the data. A class name cannot carry a number, so the control
+     * writes these three onto the element it just built and the rules read them
+     * back. The values below are the "nothing measured yet" defaults, so a
+     * panel renders before its first frame; a host declaring its own palette
+     * does not have to repeat them, because every painted element carries its
+     * own. */
+    --t-ob-bar: 0%;
+    --t-ob-heat: 0%;
+    --t-ob-sent: 50%;
 
     /* Type and shape */
     --t-font: 'DM Sans', -apple-system, sans-serif;
@@ -80,6 +101,8 @@
     --t-red: #dc2626;
     --t-green-flash: rgba(22, 163, 74, 0.22);
     --t-red-flash: rgba(220, 38, 38, 0.22);
+    --t-green-hover: #15803d;
+    --t-red-hover: #b91c1c;
 
     --t-orange: #b45309;
     --t-warning: #b45309;

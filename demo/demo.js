@@ -29,6 +29,11 @@
         WatchlistWidget,
         ControlTypes,
         OrderStates,
+        OrderEntryWidget,
+        OrderEntrySides,
+        TradeFeedWidget,
+        OrderBookWidget,
+        MarketDataLevels,
         PRESENTATION_CLASSES,
     } = window.SSTradingControls;
 
@@ -194,6 +199,52 @@
         }
     }
 
+    // The instrument picker `trading.pickInstrument` puts on screen. It belongs
+    // to the host on purpose: a control that opened its own would have to know
+    // what this page's dialogs look like, and would have to fetch the universe
+    // itself. Dismissing it calls nothing back, which is the contract — the
+    // control learns what was chosen, and learns nothing when nothing was.
+    function pickInstrument(kind, onPicked) {
+        logLine('act', `${kind}: trading.pickInstrument() — the host opened its picker`);
+
+        const overlay = document.createElement('div');
+        overlay.className = 'picker';
+
+        const sheet = document.createElement('div');
+        sheet.className = 'picker-sheet';
+        const title = document.createElement('div');
+        title.className = 'picker-title';
+        title.textContent = 'Pick an instrument';
+        sheet.appendChild(title);
+
+        const close = () => overlay.remove();
+        for (const instrument of UNIVERSE) {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'picker-option';
+            option.textContent = `${instrument.symbol} — ${instrument.name}`;
+            option.addEventListener('click', () => {
+                close();
+                logLine('act', `${kind}: picked ${instrument.symbol}`);
+                onPicked(instrument.symbol);
+            });
+            sheet.appendChild(option);
+        }
+
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'tbtn picker-dismiss';
+        dismiss.textContent = 'Dismiss';
+        dismiss.addEventListener('click', () => {
+            close();
+            logLine('dim', `${kind}: the picker was dismissed — the control was told nothing`);
+        });
+        sheet.appendChild(dismiss);
+
+        overlay.appendChild(sheet);
+        document.body.appendChild(overlay);
+    }
+
     // ------------------------------------------------------------------ the port
 
     // Every key the controls pass to `t()` — the list is `translation-keys.json`,
@@ -252,6 +303,82 @@
         'USD': 'USD',
         'Watchlist': 'Watchlist',
         'WatchlistFilter': 'Watchlist filter',
+
+        // Order entry: the form's captions, the letters of the two keyboard
+        // shortcuts (the badge on each submit button is a translated string
+        // because the shortcut belongs to the host), and the wording of every
+        // rule the pad enforces.
+        'Amount': 'Amount',
+        'Avbl': 'Avbl',
+        'BBO': 'BBO',
+        'BestBidOrOffer': 'Best bid or offer',
+        'BuyHotkey': 'B',
+        'Limit': 'Limit',
+        'Limit price must be a multiple of {0}': 'Limit price must be a multiple of {0}',
+        'Limit price must be positive': 'Limit price must be positive',
+        'Market': 'Market',
+        'Max Buy': 'Max buy',
+        'Max Sell': 'Max sell',
+        'OrderEntry': 'Order entry',
+        'OrderQuantity': 'Order quantity',
+        'OrderType': 'Order type',
+        'PercentageOfBalance': 'Percentage of balance',
+        'Quantity must be <= {0}': 'Quantity must be <= {0}',
+        'Quantity must be >= {0}': 'Quantity must be >= {0}',
+        'Quantity must be a multiple of {0}': 'Quantity must be a multiple of {0}',
+        'Quantity must be positive': 'Quantity must be positive',
+        'SellHotkey': 'S',
+        'StopLimit': 'Stop limit',
+        'StopLoss': 'Stop loss',
+        'StopPrice': 'Stop price',
+        'Stop price must be a multiple of {0}': 'Stop price must be a multiple of {0}',
+        'Stop price must be positive': 'Stop price must be positive',
+        'TakeProfit': 'Take profit',
+        'Total': 'Total',
+        'TpSl': 'TP / SL',
+
+        // Trade feed: the panel chrome, the two tabs, the two renderings, and
+        // the bubble tooltip's rows — which read "VWAP" and "Total qty" once a
+        // bubble stands for more than one print.
+        'Add trade feed': 'Add trade feed',
+        'AddInstrument': 'Add instrument',
+        'BubbleChart': 'Bubble chart',
+        'ExtraInstruments': 'Extra instruments',
+        'ListView': 'List',
+        'MarketTrades': 'Market trades',
+        'My trades': 'My trades',
+        'No trades yet': 'No trades yet',
+        'Remove': 'Remove',
+        'Total qty': 'Total qty',
+        'Trade feed tabs': 'Trade feed tabs',
+        'TradeFeed': 'Trade feed',
+        'TradeFeedView': 'Trade feed view',
+        'Trades': 'Trades',
+        'VWAP': 'VWAP',
+
+        // Order book: the header's settings, the labels a screen reader reads
+        // the three regions by, and the two letters the sentiment strip has room
+        // for — short enough that only a translator can decide what they should
+        // be in another language, which is why they come through `t()` too.
+        'AddOrderbook': 'Add order book',
+        'AskOrders': 'Ask orders',
+        'AskShort': 'S',
+        'BidOrders': 'Bid orders',
+        'BidShort': 'B',
+        'ClickToChangeSymbol': 'Click to change the instrument',
+        'LevelsCount': '{0} levels',
+        'MidPrice': 'Mid price',
+        'OrderBook': 'Order book',
+        'OrderBookDepth': 'Order book depth',
+        'OrderBookInvertSides': 'Put bids on top',
+        'OrderBookSentiment': 'Buy versus sell',
+        'OrderBookView': 'Order book layout',
+        'OrderBookViewDiagonal': 'Two-sided layout',
+        'OrderBookViewStacked': 'Price, size and total',
+        'RemoveOrderbook': 'Remove this order book',
+        'Spread: {0}': 'Spread: {0}',
+        'ToggleDepthChart': 'Show the depth chart',
+        'YourOrder': 'Your order',
     };
 
     function translate(key, ...args) {
@@ -295,8 +422,28 @@
     const [SIDE_BUY_CLASS, SIDE_SELL_CLASS] = PRESENTATION_CLASSES.sideClass;
     const [PNL_POSITIVE_CLASS, PNL_NEGATIVE_CLASS] = PRESENTATION_CLASSES.pnlClass;
 
+    // The colours a control paints with directly. A class name cannot reach a
+    // canvas, so this host answers with the very tokens its stylesheet paints
+    // from, read off the document — which is why the depth curve follows the
+    // theme button at the top of the page. The literals are what a page that
+    // loaded no theme at all would get.
+    function canvasPalette() {
+        const styles = getComputedStyle(document.documentElement);
+        const token = (name, absent) => (styles.getPropertyValue(name) || '').trim() || absent;
+        return {
+            up: token('--t-green', '#0ecb81'),
+            down: token('--t-red', '#f6465d'),
+            grid: token('--t-text-dim', '#848e9c'),
+            font: `10px ${token('--t-mono', 'monospace')}`,
+        };
+    }
+
     const presentation = {
         sideText: (side) => (isBuy(side) ? 'Buy' : 'Sell'),
+        // The predicate behind the two above: which of `0`, `"Buy"` and `"BUY"`
+        // means a buy is this host's knowledge, not any control's.
+        isBuy,
+        canvasPalette,
         typeText: (type, limitPrice, stopPrice) => {
             const kind = normalizeType(type);
             if (kind === OrderTypes.Market) return 'MKT';
@@ -374,6 +521,11 @@
             const count = (subscriptions.get(symbol) || 0) + 1;
             subscriptions.set(symbol, count);
             logLine('dim', `marketData.addSymbol("${symbol}", "${level}") — refcount ${count}`);
+            // A subscription that asked for the depth is answered with a
+            // snapshot, which is what makes the diffs after it mean anything.
+            // On a timer because a real one crosses a network, and because a
+            // control subscribes from inside its own constructor.
+            if (level === MarketDataLevels.Full) setTimeout(() => sendBookSnapshot(symbol), 60);
             return Promise.resolve(true);
         },
         removeSymbol(symbol) {
@@ -384,7 +536,11 @@
             return Promise.resolve(true);
         },
         resubscribe(symbol, level) {
-            logLine('dim', `marketData.resubscribe("${symbol}", "${level}")`);
+            logLine('dim', `marketData.resubscribe("${symbol}", "${level}") — resending the book from scratch`);
+            // What a resubscribe is FOR: the ladder lost its place in the
+            // sequence and cannot trust another diff, so the only useful answer
+            // is a fresh snapshot.
+            sendBookSnapshot(symbol);
             return Promise.resolve();
         },
         getOrders: () => clone(state.orders),
@@ -419,7 +575,10 @@
                 // order book and the order entry pad do), so the demo logs the
                 // request and picks nothing — a stub is the documented answer for
                 // an adopter that takes only these four.
-                pickInstrument: () => logLine('warn', `${kind}: trading.pickInstrument() — this demo has no picker, nothing was chosen`),
+                // Host-owned UI: the control asks, the host puts a picker on
+                // screen, and the control learns only what was chosen — nothing
+                // at all if the user dismisses it.
+                pickInstrument: (onPicked) => pickInstrument(kind, onPicked),
             },
             ticker: {
                 publish(symbols, stats) {
@@ -557,6 +716,133 @@
         }
     }
 
+    // ------------------------------------------------------------- order books
+
+    // A book per symbol, kept HERE rather than in the ladder: the control holds
+    // only what the frames it received add up to, which is the whole point of a
+    // snapshot-then-diff protocol and the reason a missed frame has to be
+    // recoverable. Everything below is what a server would be doing.
+    const books = new Map();
+
+    const BOOK_LEVELS = 12;
+    // One frame in this many carries a sequence number one higher than it should
+    // — the gap a real feed produces when a message is dropped. The ladder
+    // notices, says so through `host.log`, and asks for a new snapshot rather
+    // than applying a diff to a book it can no longer trust.
+    const FRAMES_PER_GAP = 9;
+
+    const level = (price, dp) => Number(price.toFixed(dp));
+    const size = () => Number((0.4 + Math.random() * 6).toFixed(2));
+
+    function makeBook(symbol) {
+        const u = universeOf(symbol);
+        if (!u) return null;
+        const tick = Math.max(Number((u.price * 0.0004).toFixed(u.dp)), Math.pow(10, -u.dp));
+        // Rebuilding a book does not restart its sequence: a feed keeps counting
+        // whatever it decides to send, and the ladder's gap check is what that
+        // number is for.
+        const previous = books.get(symbol);
+        const book = {
+            symbol, tick, dp: u.dp, bids: new Map(), asks: new Map(),
+            sequence: previous ? previous.sequence : 0,
+            frames: previous ? previous.frames : 0,
+        };
+        for (let i = 1; i <= BOOK_LEVELS; i++) {
+            book.bids.set(level(u.price - tick * i, u.dp), size());
+            book.asks.set(level(u.price + tick * i, u.dp), size());
+        }
+        books.set(symbol, book);
+        return book;
+    }
+
+    function bookOf(symbol) {
+        return books.get(symbol) || makeBook(symbol);
+    }
+
+    // Every live ladder gets every frame and drops the ones for symbols it is not
+    // watching. It goes through the registry rather than through the reference
+    // that built the panel, because that is the fan-out a real host does — and
+    // because a ladder subscribes from inside its own constructor, before
+    // anything outside has a handle on it.
+    function deliverFrame(frame) {
+        for (const ladder of registry.get(ControlTypes.OrderBook) || []) ladder.applyFrame(frame);
+    }
+
+    function sendBookSnapshot(symbol) {
+        const book = bookOf(symbol);
+        if (!book) return;
+        book.sequence += 1;
+        deliverFrame({
+            symbol,
+            sequence: book.sequence,
+            isSnapshot: true,
+            bids: [...book.bids].map(([price, quantity]) => ({ price, quantity })),
+            asks: [...book.asks].map(([price, quantity]) => ({ price, quantity })),
+        });
+    }
+
+    // One diff: three levels resize, one is taken out (quantity zero, which is
+    // how a delete travels) and one appears a tick beyond the far edge, so the
+    // side keeps its depth while its shape changes.
+    function sendBookDiff(symbol) {
+        const book = bookOf(symbol);
+        if (!book) return;
+        const bids = [];
+        const asks = [];
+
+        for (const [side, changes] of [[book.bids, bids], [book.asks, asks]]) {
+            const step = side === book.bids ? -book.tick : book.tick;
+            const prices = [...side.keys()];
+            for (let i = 0; i < 3; i++) {
+                const price = prices[Math.floor(Math.random() * prices.length)];
+                const quantity = size();
+                side.set(price, quantity);
+                changes.push({ price, quantity });
+            }
+
+            const gone = prices[Math.floor(Math.random() * prices.length)];
+            side.delete(gone);
+            changes.push({ price: gone, quantity: 0 });
+
+            // The far edge is the lowest bid or the highest ask, whichever side
+            // this is — which is what `step` already says.
+            const far = prices.reduce((worst, price) => ((price - worst) * step > 0 ? price : worst), prices[0]);
+            const edge = level(far + step, book.dp);
+            const quantity = size();
+            side.set(edge, quantity);
+            changes.push({ price: edge, quantity });
+        }
+
+        book.frames += 1;
+        book.sequence += book.frames % FRAMES_PER_GAP === 0 ? 2 : 1;
+        if (book.frames % FRAMES_PER_GAP === 0)
+            logLine('warn', `feed: dropping a frame for ${symbol} on purpose — the next one skips a sequence number`);
+
+        deliverFrame({ symbol, sequence: book.sequence, isSnapshot: false, bids, asks });
+    }
+
+    // How far the last print may wander from the book's touch before the diffs
+    // stop making sense and the feed rebuilds the book around the new price.
+    const REBUILD_AFTER_TICKS = 8;
+
+    function pushBookFrames() {
+        const orderBook = live.get(ControlTypes.OrderBook);
+        if (!orderBook) return;
+        const symbol = orderBook.getSymbol();
+        if (!symbol) return;
+
+        const book = bookOf(symbol);
+        const u = universeOf(symbol);
+        if (!book || !u) return;
+        const touch = (Math.max(...book.bids.keys()) + Math.min(...book.asks.keys())) / 2;
+        if (Math.abs(u.price - touch) > book.tick * REBUILD_AFTER_TICKS) {
+            makeBook(symbol);
+            sendBookSnapshot(symbol);
+            return;
+        }
+        sendBookDiff(symbol);
+    }
+
     // ------------------------------------------------------------------- panels
 
     function pushPrices() {
@@ -655,11 +941,197 @@
         return widget;
     }
 
+    // The venue grid the order pad sizes and prices against. One instrument in
+    // this demo; a terminal re-states it whenever the page's symbol changes.
+    const ORDER_ENTRY_SPEC = { symbol: 'BTC@IMEX', lotSize: 0.001, tickSize: 0.1, minVolume: 0.001, maxVolume: 5 };
+
+    // The pad has no data source of its own, so everything it shows is pushed:
+    // the reference prices, the cash it may commit and the size the percent
+    // buttons take a percentage of.
+    function pushOrderEntry() {
+        const pad = live.get(ControlTypes.OrderEntry);
+        if (!pad) return;
+        const u = universeOf(ORDER_ENTRY_SPEC.symbol);
+        if (!u) return;
+
+        // A demo spread of one tick either side of the last print.
+        pad.setLimitPrice(u.price);
+        pad.setBbo(
+            Number((u.price - ORDER_ENTRY_SPEC.tickSize).toFixed(u.dp)),
+            Number((u.price + ORDER_ENTRY_SPEC.tickSize).toFixed(u.dp)));
+
+        const cash = (state.balance && state.balance.available) || 0;
+        pad.setAvailable(OrderEntrySides.Buy, cash);
+        pad.setMaxQuantity(OrderEntrySides.Buy, Math.floor((cash / u.price) * 1000) / 1000);
+
+        // Selling is capped by what is actually held, which is why the two sides
+        // are set separately rather than sharing one number.
+        const position = state.positions.find(p => p.instrument === ORDER_ENTRY_SPEC.symbol);
+        const size = position ? Math.abs(position.quantity) : 0;
+        pad.setAvailable(OrderEntrySides.Sell, size * u.price);
+        pad.setMaxQuantity(OrderEntrySides.Sell, size);
+    }
+
+    function createOrderEntry(hostEl) {
+        const widget = OrderEntryWidget.create(hostEl, {}, {
+            host: makeHost(ControlTypes.OrderEntry),
+            // The pad validated the form and collected it; sending is the host's
+            // half, and this is what proves the dep exists. A market order fills
+            // against the last print, anything else rests in the demo's own book
+            // until the tick loop reaches it — so a form on this panel becomes a
+            // row on the active-orders panel next to it.
+            submitOrder: (side, values) => {
+                const buy = side === OrderEntrySides.Buy;
+                const u = universeOf(ORDER_ENTRY_SPEC.symbol);
+                const apiType = OrderEntryWidget.toApiType(values.type);
+                const at = values.limitPrice != null ? ` @ ${values.limitPrice}` : '';
+                logLine('act', `submitOrder("${side}", ${values.type} ${values.quantity} ${ORDER_ENTRY_SPEC.symbol}${at})`);
+
+                const id = state.nextOrderId++;
+                if (apiType === OrderTypes.Market) {
+                    addExecution(ORDER_ENTRY_SPEC.symbol, buy ? Sides.Buy : Sides.Sell, values.quantity, u.price, id);
+                    applyFill(ORDER_ENTRY_SPEC.symbol, buy, values.quantity, u.price);
+                    pushOrderEntry();
+                    return;
+                }
+
+                state.orders.unshift({
+                    id,
+                    localId: Math.max(0, ...state.orders.map(o => o.localId || 0)) + 1,
+                    instrument: ORDER_ENTRY_SPEC.symbol,
+                    side: buy ? Sides.Buy : Sides.Sell,
+                    type: apiType,
+                    quantity: values.quantity,
+                    balance: values.quantity,
+                    limitPrice: values.limitPrice,
+                    stopPrice: values.stopPrice,
+                    status: OrderStates.Active,
+                });
+                const orders = live.get(ControlTypes.ActiveOrders);
+                if (orders) orders.update(clone(state.orders));
+            },
+        });
+        widget.setInstrument(clone(ORDER_ENTRY_SPEC));
+        return widget;
+    }
+
+    // The ladder starts on the same instrument the order pad quotes, so a click
+    // on a level lands in a form that is already on that symbol.
+    const BOOK_SYMBOL = 'BTC@IMEX';
+
+    function createOrderBook(hostEl) {
+        const widget = OrderBookWidget.create(hostEl, { followsActive: true }, {
+            host: makeHost(ControlTypes.OrderBook),
+            // A plain click prefills a price, and that is all: the ladder reports
+            // the level and the side, the host decides what to do with it.
+            onPriceSelected: (price, side) => {
+                logLine('act', `onPriceSelected(${price}, ${side}) — prefilling the order pad`);
+                const pad = live.get(ControlTypes.OrderEntry);
+                if (pad) {
+                    pad.preselect(side === Sides.Buy ? OrderEntrySides.Buy : OrderEntrySides.Sell);
+                    pad.setLimitPrice(price);
+                }
+            },
+            // Ctrl-click sends at that price. It rests in the demo's own order
+            // list, so the ladder's badge and the active-orders panel both show
+            // it on the next frame.
+            onPriceExecuted: (price, side) => {
+                const buy = side === Sides.Buy;
+                const quantity = size();
+                logLine('act', `onPriceExecuted(${price}, ${side}) — resting ${quantity} ${buy ? 'bid' : 'offer'}`);
+                state.orders.unshift({
+                    id: state.nextOrderId++,
+                    localId: Math.max(0, ...state.orders.map(o => o.localId || 0)) + 1,
+                    instrument: widget.getSymbol(),
+                    side: buy ? Sides.Buy : Sides.Sell,
+                    type: OrderTypes.Limit,
+                    quantity,
+                    balance: quantity,
+                    limitPrice: price,
+                    stopPrice: null,
+                    status: OrderStates.Active,
+                });
+                const orders = live.get(ControlTypes.ActiveOrders);
+                if (orders) orders.update(clone(state.orders));
+            },
+            // The two measurements the control refuses to read off `window`
+            // itself. A phone gets half the levels, and the curve is drawn at the
+            // screen's real resolution.
+            maxDepth: () => (window.matchMedia('(max-width: 768px), (max-height: 500px)').matches ? 5 : 10),
+            pixelRatio: () => window.devicePixelRatio || 1,
+        });
+        // The host drives the symbol, exactly as a terminal drives its
+        // follows-active ladder. The first snapshot waits for `openPanel` to
+        // register the panel, because frames reach a ladder through the host's
+        // fan-out and not through the reference that built it.
+        widget.setSymbol(BOOK_SYMBOL);
+        return widget;
+    }
+
+    // The instrument the page is "showing". The feed accepts prints for it
+    // without it being pinned, exactly as a terminal's active symbol does.
+    const FEED_SYMBOL = 'BTC@IMEX';
+
+    // What the tape has already seen per symbol, so a print can say which way
+    // the price went. Held here rather than in `tick` because it is the tape's
+    // book-keeping, not the simulation's.
+    const lastTapePrice = new Map();
+
+    // A price move is a print somebody made. Every symbol prints on every tick;
+    // the feed filters by the symbols it watches itself — that is why pinning
+    // an extra starts showing prints without the demo being told anything.
+    function pushTape() {
+        const feed = live.get(ControlTypes.TradeFeed);
+        for (const u of UNIVERSE) {
+            const previous = lastTapePrice.get(u.symbol);
+            lastTapePrice.set(u.symbol, u.price);
+            if (!feed) continue;
+            const buy = previous === undefined ? Math.random() < 0.5 : u.price >= previous;
+            feed.addTrade({
+                symbol: u.symbol,
+                side: buy ? Sides.Buy : Sides.Sell,
+                price: u.price,
+                quantity: Number((Math.random() * 3 + 0.05).toFixed(3)),
+                time: new Date().toISOString(),
+            });
+        }
+    }
+
+    // Enough history for the bubble chart to have something to compact — a feed
+    // opened onto an empty tape looks broken rather than quiet.
+    function seedTape(symbol) {
+        const u = universeOf(symbol);
+        const prints = [];
+        for (let i = 0; i < 120; i++) {
+            const drift = (Math.random() - 0.5) * 2 * u.vol * 8;
+            prints.push({
+                symbol,
+                side: drift >= 0 ? Sides.Buy : Sides.Sell,
+                price: Number((u.price * (1 + drift)).toFixed(u.dp)),
+                quantity: Number((Math.random() * 3 + 0.05).toFixed(3)),
+                time: new Date(Date.now() - i * 1500).toISOString(),
+            });
+        }
+        return prints;
+    }
+
+    function createTradeFeed(hostEl) {
+        const widget = TradeFeedWidget.create(hostEl, {}, { host: makeHost(ControlTypes.TradeFeed) });
+        // Two pushes, because they are two things the host knows and the panel
+        // does not: which symbol the page is on, and what has printed so far.
+        widget.setActiveSymbol(FEED_SYMBOL);
+        widget.setTrades(seedTape(FEED_SYMBOL));
+        return widget;
+    }
+
     const PANELS = {
         [ControlTypes.Watchlist]: { hostId: 'watchlistHost', label: 'watchlist', create: createWatchlist },
         [ControlTypes.Positions]: { hostId: 'positionsHost', label: 'positions', create: createPositions },
         [ControlTypes.ActiveOrders]: { hostId: 'ordersHost', label: 'active orders', create: createOrders },
         [ControlTypes.TradeHistory]: { hostId: 'historyHost', label: 'trade history', create: createHistory },
+        [ControlTypes.OrderEntry]: { hostId: 'orderEntryHost', label: 'order entry', create: createOrderEntry },
+        [ControlTypes.TradeFeed]: { hostId: 'tradefeedHost', label: 'trade feed', create: createTradeFeed },
+        [ControlTypes.OrderBook]: { hostId: 'orderbookHost', label: 'order book', create: createOrderBook },
     };
 
     function openPanel(kind) {
@@ -668,6 +1140,7 @@
         hostEl.textContent = '';
         live.set(kind, panel.create(hostEl));
         if (kind === ControlTypes.Watchlist) pushPrices();
+        if (kind === ControlTypes.OrderEntry) pushOrderEntry();
     }
 
     // `host.close()` — the panel's × asked to go away. The watchlist and the trade
@@ -704,6 +1177,9 @@
             u.price = Number((u.price * (1 + drift)).toFixed(u.dp));
         }
         pushPrices();
+        pushOrderEntry();
+        pushTape();
+        pushBookFrames();
 
         const positions = live.get(ControlTypes.Positions);
         if (positions) positions.update(clone(state.positions.map(markToMarket)));
@@ -749,6 +1225,11 @@
         if (orders) orders.update(clone(state.orders));
         const history = live.get(ControlTypes.TradeHistory);
         if (history) void history.refresh();
+        // The books are rebuilt around the restored prices, and each ladder is
+        // told so the only way it ever is: with a snapshot.
+        books.clear();
+        const orderBook = live.get(ControlTypes.OrderBook);
+        if (orderBook && orderBook.getSymbol()) sendBookSnapshot(orderBook.getSymbol());
     });
 
     // The package's own theme.css keys its light palette off `data-bs-theme`, and

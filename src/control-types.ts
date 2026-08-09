@@ -19,6 +19,9 @@ export const ControlTypes = {
     ActiveOrders: 'activeOrders',
     TradeHistory: 'tradeHistory',
     Positions: 'positions',
+    OrderBook: 'orderbook',
+    TradeFeed: 'tradefeed',
+    OrderEntry: 'orderEntry',
 } as const;
 
 export type ControlType = typeof ControlTypes[keyof typeof ControlTypes];

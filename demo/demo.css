@@ -253,3 +253,65 @@ body {
 .bi-arrow-left-right::before { content: '\21C4'; font-size: 13px; }
 .bi-file-earmark-spreadsheet::before { content: '\2913'; font-size: 13px; }
 .bi-question-circle::before { content: '?'; font-weight: 700; }
+.bi-plus-lg::before { content: '\FF0B'; }
+.bi-distribute-horizontal::before { content: '\2551'; }
+.bi-table::before { content: '\2261'; }
+.bi-arrow-down-up::before { content: '\21C5'; }
+.bi-graph-up::before { content: '\2197'; }
+
+/* ------------------------------------------------------- instrument picker */
+
+/* What `trading.pickInstrument` puts on screen. It is page chrome, not part of
+   any control: the order book asks for an instrument and this is the host's
+   answer, so it is styled here rather than in the package. */
+.picker {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 50;
+}
+
+.picker-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 280px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+}
+
+.picker-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--t-text-dim);
+    padding-bottom: 6px;
+}
+
+.picker-option {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--t-radius);
+    color: var(--t-text);
+    font-family: var(--t-font);
+    font-size: 12px;
+    text-align: left;
+    padding: 5px 8px;
+    cursor: pointer;
+}
+
+.picker-option:hover {
+    background: var(--t-hover);
+    border-color: var(--t-border);
+    color: var(--t-text-bright);
+}
+
+.picker-dismiss { margin-top: 8px; align-self: flex-end; }
