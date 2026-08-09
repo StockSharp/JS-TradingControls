@@ -452,6 +452,7 @@ import { TradingHost } from './trading-host.js';
 import type { TradeRow } from './trading-data.js';
 import type { FeedBubble, FeedTick } from './tradefeed-aggregator.js';
 import { type BubbleLane, type BubbleShape } from './tradefeed-bubbles.js';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export interface TradeFeedDeps {
     host: TradingHost;
 }
@@ -461,8 +462,6 @@ export declare class TradeFeedWidget {
     static MAX_ROWS: number;
     static MAX_BUBBLES: number;
     rootEl: HTMLElement;
-    marketEl: HTMLElement | null;
-    myEl: HTMLElement | null;
     extrasEl: HTMLElement | null;
     bubbleCanvas: HTMLCanvasElement | null;
     trades: TradeRow[];
@@ -472,6 +471,9 @@ export declare class TradeFeedWidget {
     tab: string;
     view: string;
     _host: TradingHost;
+    _marketGrid: DataGrid<TradeRow> | null;
+    _myGrid: DataGrid<TradeRow> | null;
+    _seq: number;
     _tabsEl: HTMLElement | null;
     _viewToggleEl: HTMLElement | null;
     _tooltipEl: HTMLElement | null;
@@ -495,13 +497,17 @@ export declare class TradeFeedWidget {
     setTrades(trades: TradeRow[]): void;
     addTrade(trade: TradeRow): void;
     loadMyTrades(portfolioId: number | null, symbol: string | null): Promise<void>;
+    _makeGrid(containerSelector: string): DataGrid<TradeRow> | null;
+    _stamp(trade: TradeRow): TradeRow;
+    static _key(trade: TradeRow): string;
+    _rowClass(trade: TradeRow): string;
+    _columns(): GridColumn<TradeRow>[];
+    _syncSymbolColumn(): void;
     addExtraSymbol(symbol: string): Promise<void>;
     removeExtraSymbol(symbol: string): Promise<void>;
     getExtraSymbols(): string[];
     _persistExtras(): void;
     _watches(symbol: string | undefined): boolean;
-    _createRow(trade: TradeRow, isNew: boolean): HTMLElement;
-    _renderMarket(): void;
     _renderMy(): void;
     _renderExtras(): void;
     _bindTabs(): void;

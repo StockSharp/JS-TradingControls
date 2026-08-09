@@ -46,11 +46,19 @@ function tradeFeedPanel(state: Record<string, unknown> = {}) {
 }
 
 function rows(root: FakeElement): FakeElement[] {
-    return root.querySelector('.tf-market')!.childNodes as FakeElement[];
+    const all = root.querySelector('.tf-market tbody')!.childNodes as FakeElement[];
+    // The grid renders one "nothing here" row into an empty tape; these tests
+    // count prints.
+    return all.filter(tr => !(tr.childNodes as FakeElement[]).some(td => td.className.includes('grid-empty')));
 }
 
+/// The columns a row actually shows, by the key the grid stamps on each cell.
 function cells(row: FakeElement): string[] {
-    return (row.childNodes as FakeElement[]).map(c => c.className);
+    return (row.childNodes as FakeElement[]).map(c => c.getAttribute('data-col') || '');
+}
+
+function cell(row: FakeElement, col: string): FakeElement {
+    return (row.childNodes as FakeElement[]).find(c => c.getAttribute('data-col') === col)!;
 }
 
 function button(root: FakeElement, selector: string): FakeElement {
@@ -128,33 +136,45 @@ describe('TradeFeedWidget builds its own panel', () => {
 });
 
 describe('TradeFeedWidget: the tape', () => {
-    it('paints a print per row, coloured by the direction the HOST read', () => {
+    it('paints a print per row through the grid, coloured by the direction the HOST read', () => {
         const { widget, root } = tradeFeedPanel();
         widget.setTrades(TAPE);
 
         assert.equal(rows(root).length, 3);
-        assert.deepStrictEqual(cells(rows(root)[0]!), ['time', 'price', 'qty', 'side']);
-        assert.deepStrictEqual(rows(root).map(r => r.className.split(' ')[1]), ['side-buy', 'side-sell', 'side-buy']);
+        // No second instrument pinned, so the symbol column is hidden.
+        assert.deepStrictEqual(cells(rows(root)[0]!), ['time', 'price', 'quantity', 'side']);
+        assert.deepStrictEqual(rows(root).map(r => r.className.split(' ')[0]), ['side-buy', 'side-sell', 'side-buy']);
         // The numeric 0 on the last row is the same buy as the string on the
         // first: normalising the wire's spellings is the host's job, and the
         // control never inspects the value it passes through.
-        assert.equal((rows(root)[2]!.childNodes[3] as FakeElement).textContent, 'Buy');
-        assert.equal((rows(root)[0]!.childNodes[1] as FakeElement).textContent, formatPrice(68420.5));
-        assert.equal((rows(root)[0]!.childNodes[2] as FakeElement).textContent, '0.25');
+        assert.equal(cell(rows(root)[2]!, 'side').textContent, 'Buy');
+        assert.equal(cell(rows(root)[0]!, 'price').textContent, formatPrice(68420.5));
+        assert.equal(cell(rows(root)[0]!, 'quantity').textContent, '0.25');
     });
 
-    it('prepends a new print and flashes only that one', () => {
+    it('flashes exactly the print that just landed — the grid marks it, nobody hand-patches', () => {
         const { widget, root } = tradeFeedPanel();
         widget.setActiveSymbol('BTC@IMEX');
         widget.setTrades(TAPE);
-        const before = rows(root)[0]!;
 
         widget.addTrade({ symbol: 'BTC@IMEX', side: 'Buy', price: 68500, quantity: 2, time: '2026-04-30T12:00:04Z' });
 
         assert.equal(rows(root).length, 4);
-        assert.equal(rows(root)[0]!.classList.contains('flash-new'), true);
-        assert.strictEqual(rows(root)[1], before, 'the rows already on screen have to survive, animation and all');
-        assert.equal(before.classList.contains('flash-new'), false);
+        assert.deepStrictEqual(rows(root).map(r => r.classList.contains('flash-new')), [true, false, false, false]);
+    });
+
+    it('replaces the tape without flashing — a new instrument is history, not news', () => {
+        const { widget, root } = tradeFeedPanel();
+        widget.setActiveSymbol('BTC@IMEX');
+        widget.setTrades(TAPE);
+
+        widget.setTrades([
+            { symbol: 'ETH@IMEX', side: 'Buy', price: 3500, quantity: 1, time: '2026-04-30T12:01:00Z' },
+            { symbol: 'ETH@IMEX', side: 'Sell', price: 3499, quantity: 2, time: '2026-04-30T12:01:01Z' },
+        ]);
+
+        assert.equal(rows(root).length, 2);
+        assert.deepStrictEqual(rows(root).map(r => r.classList.contains('flash-new')), [false, false]);
     });
 
     it('marks a print well above the recent average', () => {
@@ -201,9 +221,8 @@ describe('TradeFeedWidget: pinned extras', () => {
         await widget.addExtraSymbol('ETH@IMEX');
         widget.setTrades(TAPE);
 
-        assert.deepStrictEqual(cells(rows(root)[0]!), ['time', 'sym', 'price', 'qty', 'side']);
-        assert.equal(rows(root)[0]!.classList.contains('tf-row-multi'), true);
-        assert.equal((rows(root)[0]!.childNodes[1] as FakeElement).textContent, 'BTC@IMEX');
+        assert.deepStrictEqual(cells(rows(root)[0]!), ['time', 'symbol', 'price', 'quantity', 'side']);
+        assert.equal(cell(rows(root)[0]!, 'symbol').textContent, 'BTC@IMEX');
     });
 
     it('unpins from the chip, dropping the subscription and the prints with it', async () => {
@@ -268,7 +287,7 @@ describe('TradeFeedWidget: the two tabs', () => {
         await widget.loadMyTrades(7, 'BTC@IMEX');
 
         assert.deepStrictEqual(asked, [[7, 'BTC@IMEX', TradeFeedWidget.MAX_ROWS]]);
-        const myRows = root.querySelector('.tf-my')!.childNodes as FakeElement[];
+        const myRows = root.querySelector('.tf-my tbody')!.childNodes as FakeElement[];
         assert.equal(myRows.length, 1);
         assert.equal(myRows[0]!.classList.contains('side-sell'), true);
     });
@@ -276,12 +295,12 @@ describe('TradeFeedWidget: the two tabs', () => {
     it('says so when the account has no fills, and reports a failed load to the host', async () => {
         const { widget, root, host } = tradeFeedPanel();
         await widget.loadMyTrades(null, null);
-        assert.equal(root.querySelector('.tf-my')!.textContent, 'No trades yet');
+        assert.equal(root.querySelector('.tf-my .grid-empty')!.textContent, 'No trades yet');
 
         host.trading.api.getExecutions = () => Promise.reject(new Error('history is down'));
         await widget.loadMyTrades(7, 'BTC@IMEX');
         assert.match(host.calls.logged[0]!, /TradeFeedWidget: failed to load own trades: .*history is down/);
-        assert.equal(root.querySelector('.tf-my')!.textContent, 'No trades yet');
+        assert.equal(root.querySelector('.tf-my .grid-empty')!.textContent, 'No trades yet');
     });
 });
 

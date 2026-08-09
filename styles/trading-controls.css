@@ -974,44 +974,22 @@
     min-height: 0;
 }
 
-.tradefeed-content .empty-state {
-    padding: 12px 8px;
-    text-align: center;
-    color: var(--t-text-dim);
-}
+/* Each tape is a DataGrid over the shared table skin. The direction class the
+   host answered with sits on the row, so the price and the side inherit its
+   colour while the time and the qty state their own. The grid stamps every
+   body cell with its column key — that is what the alignments key off. */
+.tradefeed-table td[data-col="time"] { color: var(--t-text-dim); }
+.tradefeed-table td[data-col="symbol"] { color: var(--t-text-bright); font-weight: 600; font-size: 11px; }
+.tradefeed-table td[data-col="price"] { text-align: right; font-weight: 500; }
+.tradefeed-table td[data-col="quantity"] { text-align: right; color: var(--t-text-dim); }
+.tradefeed-table td[data-col="side"] { text-align: right; font-weight: 600; font-size: 10px; }
 
-/* One print. The four-column grid becomes five when a symbol column is
-   showing, which is what `tf-row-multi` is for. */
-.tf-row {
-    display: grid;
-    grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr) 38px;
-    column-gap: 8px;
-    padding: 1px 8px;
-    line-height: 1.7;
-    transition: background var(--t-transition);
-}
-
-.tf-row.tf-row-multi {
-    grid-template-columns: 58px 70px minmax(0, 1fr) minmax(0, 1fr) 38px;
-}
-
-.tf-row .price,
-.tf-row .qty,
-.tf-row .sym { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* The direction class the host answered with sits on the row, so the price and
-   the side inherit its colour while the two columns below state their own. */
-.tf-row .time { color: var(--t-text-dim); }
-.tf-row .qty { text-align: right; color: var(--t-text-dim); }
-.tf-row .sym { color: var(--t-text-bright); font-weight: 600; font-size: 11px; }
-.tf-row .price { text-align: right; font-weight: 500; }
-.tf-row .side { text-align: right; font-weight: 600; font-size: 10px; }
-
-/* A print that just landed, and one well above the recent average size. */
-.tf-row.flash-new { animation: flashGreen 0.6s ease; }
-.tf-row.side-sell.flash-new { animation: flashRed 0.6s ease; }
-.tf-row.large-trade { font-size: 12px; font-weight: 600; }
-.tf-row.large-trade .qty { color: var(--t-text-bright); }
+/* A print that just landed (the grid's flashNewClass names it), and one well
+   above the recent average size. */
+.tradefeed-table tbody tr.flash-new { animation: flashGreen 0.6s ease; }
+.tradefeed-table tbody tr.side-sell.flash-new { animation: flashRed 0.6s ease; }
+.tradefeed-table tbody tr.large-trade td { font-size: 12px; font-weight: 600; }
+.tradefeed-table tbody tr.large-trade td[data-col="quantity"] { color: var(--t-text-bright); }
 
 /* List | bubbles, in the panel header. */
 .tradefeed-view-toggle {

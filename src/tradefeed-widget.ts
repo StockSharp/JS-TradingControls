@@ -23,10 +23,17 @@
 import { formatPrice, formatQty, formatTime } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
+import { makeGridMenu } from './grid-menu.js';
 import { MarketDataLevels, TradingHost, assertHost } from './trading-host.js';
 import type { TradeRow } from './trading-data.js';
 import type { FeedBubble, FeedTick } from './tradefeed-aggregator.js';
 import { layoutBubbles, type BubbleLane, type BubbleShape } from './tradefeed-bubbles.js';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
+
+// A print carries no id of its own, so the widget stamps one on arrival — the
+// grid addresses rows by key, and a tape with fifty anonymous rows would have
+// no identities to diff, select or flash by.
+type KeyedTrade = TradeRow & { _k?: number };
 
 /// The panel needs nothing beyond the host port. It reports no application
 /// action: a tape is read, and the two gestures it does make — pin an
@@ -66,8 +73,6 @@ export class TradeFeedWidget {
     static MAX_BUBBLES = 500;
 
     rootEl: HTMLElement;
-    marketEl: HTMLElement | null;
-    myEl: HTMLElement | null;
     extrasEl: HTMLElement | null;
     bubbleCanvas: HTMLCanvasElement | null;
     trades: TradeRow[];
@@ -78,6 +83,10 @@ export class TradeFeedWidget {
     view: string;
     // `//` rather than `///` from here down — see the note in positions-widget.
     _host: TradingHost;
+    _marketGrid: DataGrid<TradeRow> | null;
+    _myGrid: DataGrid<TradeRow> | null;
+    // The stamp the next anonymous print gets — see KeyedTrade.
+    _seq: number;
     _tabsEl: HTMLElement | null;
     _viewToggleEl: HTMLElement | null;
     _tooltipEl: HTMLElement | null;
@@ -131,8 +140,21 @@ export class TradeFeedWidget {
                 makeElement('button', 'tf-tab', { type: 'button', role: 'tab', 'aria-selected': 'false', 'data-tab': 'my' }, [host.t('My trades')]),
             ]),
             makeElement('div', 'tf-extras', { role: 'list', 'aria-label': host.t('ExtraInstruments'), hidden: '' }, []),
-            makeElement('div', 'tradefeed-content tf-market', { 'aria-live': 'polite' }, []),
-            makeElement('div', 'tradefeed-content tf-my', {}, []),
+            // Each tape is a DataGrid over the shared table skin: the <thead>
+            // is left empty for the grid to fill, which is also what makes the
+            // tape sortable and gives it the grid's menu and selection.
+            makeElement('div', 'tradefeed-content tf-market', { 'aria-live': 'polite' }, [
+                makeElement('table', 'terminal-table tradefeed-table', { role: 'table', 'aria-label': marketTrades }, [
+                    makeElement('thead', '', {}, []),
+                    makeElement('tbody', '', {}, []),
+                ]),
+            ]),
+            makeElement('div', 'tradefeed-content tf-my', {}, [
+                makeElement('table', 'terminal-table tradefeed-table', { role: 'table', 'aria-label': host.t('My trades') }, [
+                    makeElement('thead', '', {}, []),
+                    makeElement('tbody', '', {}, []),
+                ]),
+            ]),
             makeElement('canvas', 'tradefeed-bubbles tf-bubbles', { 'aria-hidden': 'true' }, []),
             makeElement('div', 'tf-bubble-tooltip', { role: 'tooltip', hidden: '' }, []),
         ]);
@@ -142,8 +164,6 @@ export class TradeFeedWidget {
         this._host = assertHost(deps?.host, 'TradeFeedWidget');
 
         this.rootEl = rootEl;
-        this.marketEl = this.rootEl.querySelector('.tf-market');
-        this.myEl = this.rootEl.querySelector('.tf-my');
         this.extrasEl = this.rootEl.querySelector('.tf-extras');
         this.bubbleCanvas = this.rootEl.querySelector('.tf-bubbles');
         this._tabsEl = this.rootEl.querySelector('.tf-tabs');
@@ -162,9 +182,13 @@ export class TradeFeedWidget {
         // print of the session.
         this.avgQty = 100;
         this.tab = 'market';
+        this._seq = 0;
         this._bubbleHits = [];
         this._canvasSize = null;
         this._resizeObserver = null;
+
+        this._marketGrid = this._makeGrid('.tf-market');
+        this._myGrid = this._makeGrid('.tf-my');
 
         const saved = this._host.preferences.get(TradeFeedWidget.VIEW_KEY, null);
         this.view = saved === 'bubbles' ? 'bubbles' : 'list';
@@ -211,6 +235,10 @@ export class TradeFeedWidget {
 
     dispose(): void {
         try { this._resizeObserver?.disconnect(); } catch { /* already torn down */ }
+        // The grids hold document-level listeners (the copy shortcut) that
+        // outlive a removed subtree — they have to be told, not just detached.
+        this._marketGrid?.destroy();
+        this._myGrid?.destroy();
         // Drop this feed's share of every extra so a symbol nobody else watches
         // stops streaming — the client refcounts, so a neighbour keeps its own.
         for (const symbol of this._extraSymbols)
@@ -220,26 +248,27 @@ export class TradeFeedWidget {
     }
 
     /// Which symbol the rest of the page is showing. The feed accepts prints
-    /// for it without it being pinned, and re-renders so the symbol column
+    /// for it without it being pinned, and re-syncs so the symbol column
     /// appears or disappears with the pinned set.
     setActiveSymbol(symbol: string | null): void {
         this._activeSymbol = symbol || null;
         this._renderExtras();
-        this._renderMarket();
         this._renderBubbles();
     }
 
     /// Replace the tape wholesale — what a host does when the page moves to a
-    /// different instrument.
+    /// different instrument. The flash baseline resets with it: a new
+    /// instrument's history is history, not fifty arrivals at once.
     setTrades(trades: TradeRow[]): void {
-        const rows = trades || [];
+        const rows = (trades || []).map(t => this._stamp(t));
         this.trades = rows.slice(0, TradeFeedWidget.MAX_ROWS);
         this.bubbleTrades = rows.slice(0, TradeFeedWidget.MAX_BUBBLES);
         if (this.trades.length > 0) {
             const total = this.trades.reduce((sum, t) => sum + (t.quantity ?? 0), 0);
             this.avgQty = total / this.trades.length || this.avgQty;
         }
-        this._renderMarket();
+        this._marketGrid?.flashReset();
+        this._marketGrid?.setRows([...this.trades]);
         this._renderBubbles();
     }
 
@@ -248,6 +277,7 @@ export class TradeFeedWidget {
     /// is the only arrangement that supports per-instance extras.
     addTrade(trade: TradeRow): void {
         if (!trade || !this._watches(trade.symbol)) return;
+        this._stamp(trade);
         this.trades.unshift(trade);
         if (this.trades.length > TradeFeedWidget.MAX_ROWS) this.trades.length = TradeFeedWidget.MAX_ROWS;
         this.bubbleTrades.unshift(trade);
@@ -256,13 +286,9 @@ export class TradeFeedWidget {
         // the recent tape, not the whole session.
         this.avgQty = this.avgQty * 0.95 + (trade.quantity ?? 0) * 0.05;
 
-        if (this.marketEl) {
-            const row = this._createRow(trade, true);
-            if (this.marketEl.firstChild) this.marketEl.insertBefore(row, this.marketEl.firstChild);
-            else this.marketEl.appendChild(row);
-            while (this.marketEl.childNodes.length > TradeFeedWidget.MAX_ROWS && this.marketEl.lastChild)
-                this.marketEl.removeChild(this.marketEl.lastChild);
-        }
+        // The grid diffs by key, and its flashNewClass is what marks the
+        // newcomer — the hand-built prepend this replaces did both by hand.
+        this._marketGrid?.setRows([...this.trades]);
         this._renderBubbles();
     }
 
@@ -286,6 +312,111 @@ export class TradeFeedWidget {
         this._renderMy();
     }
 
+    // ---------------------------------------------------------------- the grid
+
+    // One construction for both tapes: same columns, same chrome, different
+    // tbody. The container holds the scroll; the grid holds the rows.
+    _makeGrid(containerSelector: string): DataGrid<TradeRow> | null {
+        const head = this.rootEl.querySelector(`${containerSelector} thead`);
+        const body = this.rootEl.querySelector(`${containerSelector} tbody`);
+        if (!head || !body) return null;
+        return new DataGrid<TradeRow>({
+            head: head as HTMLElement,
+            body: body as HTMLElement,
+            columns: this._columns(),
+            // Newest print on top — the only order a tape is read in at rest;
+            // a header click can still reorder, and clears back to this.
+            defaultSort: { col: 'time', dir: 'desc' },
+            rowKey: (t) => TradeFeedWidget._key(t),
+            emptyText: this._host.t('No trades yet'),
+            rowClass: (t) => this._rowClass(t),
+            contextMenu: makeGridMenu(this._host),
+            selection: 'multi',
+            // The grid marks what is new since the previous paint; the
+            // stylesheet decides what a flash looks like.
+            flashNewClass: 'flash-new',
+        });
+    }
+
+    // Prints arrive anonymous; executions arrive with ids. Stamp the former
+    // once, on arrival, and key both without ever colliding.
+    _stamp(trade: TradeRow): TradeRow {
+        const keyed = trade as KeyedTrade;
+        if (keyed._k == null && keyed.id == null) keyed._k = ++this._seq;
+        return trade;
+    }
+
+    static _key(trade: TradeRow): string {
+        const keyed = trade as KeyedTrade;
+        return keyed.id != null ? String(keyed.id) : `p${keyed._k}`;
+    }
+
+    // The direction class sits on the row, so price and side inherit its
+    // colour while time and qty state their own — plus the "unusually large"
+    // mark, measured against the rolling average as of this paint.
+    _rowClass(trade: TradeRow): string {
+        const classes = this._host.presentation.sideClass(trade.side!).split(' ').filter(Boolean);
+        if ((trade.quantity ?? 0) > this.avgQty * 2) classes.push('large-trade');
+        return classes.join(' ');
+    }
+
+    // The tape's single column declaration, shared by both tabs. `time` sorts
+    // by the wire timestamp and shows the clock; the symbol column exists
+    // always and is hidden until a second instrument is in the feed.
+    _columns(): GridColumn<TradeRow>[] {
+        const label = (key: string) => this._host.t(key);
+        const presentation = this._host.presentation;
+        return [
+            {
+                key: 'time',
+                header: label('Time'),
+                exportable: true,
+                value: (t) => String(t.time || t.executedAt || ''),
+                render: (t) => formatTime(t.time || t.executedAt),
+            },
+            {
+                key: 'symbol',
+                header: label('Sym'),
+                exportable: true,
+                value: (t) => t.symbol,
+            },
+            {
+                key: 'price',
+                header: label('Price'),
+                exportable: true,
+                value: (t) => t.price,
+                render: (t) => formatPrice(t.price),
+            },
+            {
+                key: 'quantity',
+                header: label('Qty'),
+                exportable: true,
+                value: (t) => t.quantity,
+                render: (t) => formatQty(t.quantity),
+            },
+            {
+                key: 'side',
+                header: label('Side'),
+                exportable: true,
+                value: (t) => t.side,
+                render: (t) => presentation.sideText(t.side!),
+                exportValue: (t) => presentation.sideText(t.side!),
+            },
+        ];
+    }
+
+    // Both tapes show the symbol column exactly while a second instrument is
+    // in the feed — through the grid's own column visibility, so the user's
+    // hide/show from the menu still works the rest of the time.
+    _syncSymbolColumn(): void {
+        const multi = this._extraSymbols.size > 0;
+        for (const grid of [this._marketGrid, this._myGrid]) {
+            if (!grid) continue;
+            if (multi) grid.showColumn('symbol');
+            else grid.hideColumn('symbol');
+        }
+    }
+
     /// Pin an extra instrument to this feed: subscribe it, show it alongside
     /// the primary, and remember it in the instance's state.
     async addExtraSymbol(symbol: string): Promise<void> {
@@ -297,7 +428,6 @@ export class TradeFeedWidget {
         // add is bandwidth this panel never renders.
         try { await this._host.trading.marketData.addSymbol(sym, MarketDataLevels.Tape); } catch { /* socket race */ }
         this._renderExtras();
-        this._renderMarket();
         this._renderBubbles();
         this._persistExtras();
     }
@@ -311,8 +441,8 @@ export class TradeFeedWidget {
         try { await this._host.trading.marketData.removeSymbol(sym); } catch { /* socket race */ }
         this.trades = this.trades.filter(t => t.symbol !== sym);
         this.bubbleTrades = this.bubbleTrades.filter(t => t.symbol !== sym);
+        this._marketGrid?.setRows([...this.trades]);
         this._renderExtras();
-        this._renderMarket();
         this._renderBubbles();
         this._persistExtras();
     }
@@ -338,44 +468,14 @@ export class TradeFeedWidget {
 
     // ---------------------------------------------------------------- the list
 
-    _createRow(trade: TradeRow, isNew: boolean): HTMLElement {
-        const presentation = this._host.presentation;
-        const showSymbol = this._extraSymbols.size > 0;
-        const children: HTMLElement[] = [makeElement('span', 'time', {}, [formatTime(trade.time || trade.executedAt)])];
-        if (showSymbol) children.push(makeElement('span', 'sym', {}, [trade.symbol || '']));
-        children.push(makeElement('span', 'price', {}, [formatPrice(trade.price)]));
-        children.push(makeElement('span', 'qty', {}, [formatQty(trade.quantity)]));
-        children.push(makeElement('span', 'side', {}, [presentation.sideText(trade.side!)]));
-
-        const row = makeElement('div', 'tf-row', {}, children);
-        // Modifiers, each conditional: the direction class is the host's answer,
-        // `flash-new` only on a print that just landed, `large-trade` on one
-        // well above the running average, `tf-row-multi` when a symbol column
-        // is showing. All four are styled in `styles/trading-controls.css`.
-        // Split, because the host's answer is a class LIST and a host on its own
-        // palette may well return two names.
-        for (const name of presentation.sideClass(trade.side!).split(' ')) if (name) row.classList.add(name);
-        if (isNew) row.classList.add('flash-new');
-        if ((trade.quantity ?? 0) > this.avgQty * 2) row.classList.add('large-trade');
-        if (showSymbol) row.classList.add('tf-row-multi');
-        return row;
-    }
-
-    _renderMarket(): void {
-        if (!this.marketEl) return;
-        this.marketEl.replaceChildren(...this.trades.map(t => this._createRow(t, false)));
-    }
-
     _renderMy(): void {
-        if (!this.myEl) return;
-        if (this.myTrades.length === 0) {
-            this.myEl.replaceChildren(makeElement('div', 'empty-state', {}, [this._host.t('No trades yet')]));
-            return;
-        }
-        this.myEl.replaceChildren(...this.myTrades.map(t => this._createRow(t, false)));
+        this._myGrid?.setRows(this.myTrades.map(t => this._stamp(t)));
     }
 
     _renderExtras(): void {
+        // Every path that changes the pinned set comes through here, so the
+        // symbol column tracks the set without a second call at each site.
+        this._syncSymbolColumn();
         if (!this.extrasEl) return;
         if (this._extraSymbols.size === 0) {
             this.extrasEl.replaceChildren();
