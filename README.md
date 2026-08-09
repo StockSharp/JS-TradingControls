@@ -50,7 +50,7 @@ The package also ships a ready-to-use browser bundle exposed as
 `window.SSTradingControls`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@stocksharp/trading-controls@0.1.0/dist/sstradingcontrols.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stocksharp/trading-controls@1.0.0/dist/sstradingcontrols.js"></script>
 <script>
   const { PositionsWidget } = window.SSTradingControls;
 </script>
