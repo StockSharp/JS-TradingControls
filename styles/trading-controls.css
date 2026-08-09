@@ -308,6 +308,12 @@
     color: var(--t-text-dim);
 }
 
+/* The grid marks selected rows (the blotters switch selection on); a tint
+   under the cells' own colours, so a red Sell stays red while marked. */
+.terminal-table tbody tr.is-selected td {
+    background: color-mix(in srgb, var(--t-accent) 16%, transparent);
+}
+
 /* Spelled the way Bootstrap spells it. A page that already loads Bootstrap has
    this rule twice with the same meaning, which is harmless; a page that does
    not still gets accessible headers. */

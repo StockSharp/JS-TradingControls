@@ -111,6 +111,9 @@ export class TradeHistoryWidget {
                 rowKey: (t) => String(t.id),
                 emptyText: this._host.t('No trade history'),
                 contextMenu: makeGridMenu(this._host),
+                // Press to mark, drag or Shift to range, Ctrl to toggle, Ctrl+C
+                // to copy — all the grid's own.
+                selection: 'multi',
             })
             : null;
 
@@ -118,6 +121,9 @@ export class TradeHistoryWidget {
     }
 
     dispose(): void {
+        // The grid holds document-level listeners (the copy shortcut) that
+        // outlive a removed subtree — it has to be told, not just detached.
+        this._grid?.destroy();
         this._host.unregister(this);
         try { this.rootEl.remove(); } catch { /* already detached */ }
     }

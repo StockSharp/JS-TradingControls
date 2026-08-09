@@ -137,6 +137,10 @@ export class PositionsWidget {
                 // without the widget having to repaint the position rows itself.
                 pinnedRows: () => this._pinnedRows(),
                 contextMenu: makeGridMenu(this._host),
+                // Press to mark, drag or Shift to range, Ctrl to toggle, Ctrl+C
+                // to copy — the pinned cash row stays outside the selection the
+                // same way it stays outside the sort.
+                selection: 'multi',
             })
             : null;
 
@@ -147,6 +151,9 @@ export class PositionsWidget {
     }
 
     dispose(): void {
+        // The grid holds document-level listeners (the copy shortcut) that
+        // outlive a removed subtree — it has to be told, not just detached.
+        this._grid?.destroy();
         this._host.unregister(this);
         try { this.rootEl.remove(); } catch { /* already detached */ }
     }

@@ -276,6 +276,25 @@ describe('ActiveOrdersWidget', () => {
             /dep "replaceOrder" is required/);
     });
 
+    // Row selection is the grid's, switched on by the blotter. Mousedown marks
+    // a row, Ctrl keeps the mark while adding another, a plain press replaces
+    // the set — and the grid claims the gesture, so the browser cannot start
+    // painting a text selection across the cells instead.
+    it('selects rows through the grid — press marks, ctrl-press extends', () => {
+        const { widget } = activeOrdersPanel();
+
+        row(widget, '502').dispatchEvent({ type: 'mousedown', button: 0, target: row(widget, '502') });
+        assert.ok(row(widget, '502').className.includes('is-selected'));
+
+        row(widget, '501').dispatchEvent({ type: 'mousedown', button: 0, ctrlKey: true, target: row(widget, '501') });
+        assert.ok(row(widget, '501').className.includes('is-selected'));
+        assert.ok(row(widget, '502').className.includes('is-selected'));
+
+        row(widget, '503').dispatchEvent({ type: 'mousedown', button: 0, target: row(widget, '503') });
+        assert.ok(row(widget, '503').className.includes('is-selected'));
+        assert.ok(!row(widget, '502').className.includes('is-selected'));
+    });
+
     // The table's right-click menu is the grid's, but its wording is not: every
     // label reaches the menu through `host.t()`, like every other user-visible
     // string here. The fake host echoes keys, so a label that reads as its key

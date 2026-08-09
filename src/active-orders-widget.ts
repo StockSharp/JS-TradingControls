@@ -160,6 +160,10 @@ export class ActiveOrdersWidget {
                 // Terminal rows are greyed out so the live ones stay visually prominent.
                 rowClass: (o) => ActiveOrdersWidget._rowClass(o),
                 contextMenu: makeGridMenu(this._host),
+                // Press to mark, drag or Shift to range, Ctrl to toggle, Ctrl+C
+                // to copy — all the grid's own; the press also claims the
+                // gesture from the browser's text selection.
+                selection: 'multi',
             })
             : null;
 
@@ -167,6 +171,9 @@ export class ActiveOrdersWidget {
     }
 
     dispose(): void {
+        // The grid holds document-level listeners (the copy shortcut) that
+        // outlive a removed subtree — it has to be told, not just detached.
+        this._grid?.destroy();
         this._host.unregister(this);
         try { this.rootEl.remove(); } catch { /* already detached */ }
     }

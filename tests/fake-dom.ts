@@ -31,6 +31,14 @@ export interface FakeEvent {
     /// so a fake without them cannot exercise a chart's hover at all.
     clientX?: number;
     clientY?: number;
+    /// Which button a press was, and which modifiers rode along — the grid's
+    /// row selection branches on all three, and leaves right-clicks to the
+    /// context menu by the button number.
+    button?: number;
+    buttons?: number;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
     stopPropagation?(): void;
     preventDefault?(): void;
 }
