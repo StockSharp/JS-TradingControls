@@ -185,7 +185,7 @@
         if (!symbols.length) {
             const empty = document.createElement('span');
             empty.className = 'tk-empty';
-            empty.textContent = 'ticker: the watchlist has published no visible symbols';
+            empty.textContent = LANG.page.tickerEmpty;
             tickerEl.appendChild(empty);
             return;
         }
@@ -229,7 +229,7 @@
         sheet.className = 'picker-sheet';
         const title = document.createElement('div');
         title.className = 'picker-title';
-        title.textContent = 'Pick an instrument';
+        title.textContent = LANG.page.pickerTitle;
         sheet.appendChild(title);
 
         const close = () => overlay.remove();
@@ -249,7 +249,7 @@
         const dismiss = document.createElement('button');
         dismiss.type = 'button';
         dismiss.className = 'tbtn picker-dismiss';
-        dismiss.textContent = 'Dismiss';
+        dismiss.textContent = LANG.page.pickerDismiss;
         dismiss.addEventListener('click', () => {
             close();
             logLine('dim', `${kind}: the picker was dismissed — the control was told nothing`);
@@ -262,144 +262,19 @@
 
     // ------------------------------------------------------------------ the port
 
-    // Every key the controls pass to `t()` — the list is `translation-keys.json`,
-    // generated from src/. A key missing from here is logged rather than rendered
-    // blank, so a control that grows a caption is visible on this page at once.
-    const TEXT = {
-        'Actions': 'Actions',
-        'ActiveOrders': 'Active orders',
-        'ActiveOrdersActions': 'Active order actions',
-        'ActiveOrdersList': 'Active orders',
-        'All': 'All',
-        'AvgPrice': 'Avg',
-        'Cancel order': 'Cancel order',
-        'CancelAll': 'Cancel all',
-        'CancelAllOrders': 'Cancel all orders',
-        'Change24hPct': 'Chg %',
-        'Close position': 'Close position',
-        'Close position on {0}': 'Close position on {0}',
-        'ClosePanel': 'Close panel',
-        'Current': 'Last',
-        'Dismiss': 'Dismiss',
-        'ExportToExcel': 'Export to Excel',
-        'Favorite': 'Favourite',
-        'Favorites': 'Favourites',
-        'ID': 'ID',
-        'Last': 'Last',
-        'Locked: ${0}': 'Locked: ${0}',
-        'Markets': 'Markets',
-        'MKT': 'MKT',
-        'No instruments': 'No instruments',
-        'No positions': 'No open positions',
-        'No trade history': 'No trades yet',
-        'NoActiveOrders': 'No active orders',
-        'OpenOrders': 'Open orders',
-        'OpenPositions': 'Open positions',
-        'Order': 'Order',
-        'PnL': 'P&L',
-        'Positions': 'Positions',
-        'PositionsActions': 'Position actions',
-        'Price': 'Price',
-        'Qty': 'Qty',
-        'Refresh': 'Refresh',
-        'Reverse position': 'Reverse position',
-        'Reverse position on {0}': 'Reverse position on {0}',
-        'SearchInstruments': 'Search instruments',
-        'Side': 'Side',
-        'Status': 'Status',
-        'Stop': 'Stop',
-        'Sym': 'Sym',
-        'Symbol': 'Symbol',
-        'Time': 'Time',
-        'TradeHistory': 'Trade history',
-        'TradeHistoryActions': 'Trade history actions',
-        'TradeHistoryList': 'Trade history',
-        'Type': 'Type',
-        'USD': 'USD',
-        'Watchlist': 'Watchlist',
-        'WatchlistFilter': 'Watchlist filter',
-
-        // Order entry: the form's captions, the letters of the two keyboard
-        // shortcuts (the badge on each submit button is a translated string
-        // because the shortcut belongs to the host), and the wording of every
-        // rule the pad enforces.
-        'Amount': 'Amount',
-        'Avbl': 'Avbl',
-        'BBO': 'BBO',
-        'BestBidOrOffer': 'Best bid or offer',
-        'BuyHotkey': 'B',
-        'Limit': 'Limit',
-        'Limit price must be a multiple of {0}': 'Limit price must be a multiple of {0}',
-        'Limit price must be positive': 'Limit price must be positive',
-        'Market': 'Market',
-        'Max Buy': 'Max buy',
-        'Max Sell': 'Max sell',
-        'OrderEntry': 'Order entry',
-        'OrderQuantity': 'Order quantity',
-        'OrderType': 'Order type',
-        'PercentageOfBalance': 'Percentage of balance',
-        'Quantity must be <= {0}': 'Quantity must be <= {0}',
-        'Quantity must be >= {0}': 'Quantity must be >= {0}',
-        'Quantity must be a multiple of {0}': 'Quantity must be a multiple of {0}',
-        'Quantity must be positive': 'Quantity must be positive',
-        'SellHotkey': 'S',
-        'StopLimit': 'Stop limit',
-        'StopLoss': 'Stop loss',
-        'StopPrice': 'Stop price',
-        'Stop price must be a multiple of {0}': 'Stop price must be a multiple of {0}',
-        'Stop price must be positive': 'Stop price must be positive',
-        'TakeProfit': 'Take profit',
-        'Total': 'Total',
-        'TpSl': 'TP / SL',
-
-        // Trade feed: the panel chrome, the two tabs, the two renderings, and
-        // the bubble tooltip's rows — which read "VWAP" and "Total qty" once a
-        // bubble stands for more than one print.
-        'Add trade feed': 'Add trade feed',
-        'AddInstrument': 'Add instrument',
-        'BubbleChart': 'Bubble chart',
-        'ExtraInstruments': 'Extra instruments',
-        'ListView': 'List',
-        'MarketTrades': 'Market trades',
-        'My trades': 'My trades',
-        'No trades yet': 'No trades yet',
-        'Remove': 'Remove',
-        'Total qty': 'Total qty',
-        'Trade feed tabs': 'Trade feed tabs',
-        'TradeFeed': 'Trade feed',
-        'TradeFeedView': 'Trade feed view',
-        'Trades': 'Trades',
-        'VWAP': 'VWAP',
-
-        // Order book: the header's settings, the labels a screen reader reads
-        // the three regions by, and the two letters the sentiment strip has room
-        // for — short enough that only a translator can decide what they should
-        // be in another language, which is why they come through `t()` too.
-        'AddOrderbook': 'Add order book',
-        'AskOrders': 'Ask orders',
-        'AskShort': 'S',
-        'BidOrders': 'Bid orders',
-        'BidShort': 'B',
-        'ClickToChangeSymbol': 'Click to change the instrument',
-        'LevelsCount': '{0} levels',
-        'MidPrice': 'Mid price',
-        'OrderBook': 'Order book',
-        'OrderBookDepth': 'Order book depth',
-        'OrderBookInvertSides': 'Put bids on top',
-        'OrderBookSentiment': 'Buy versus sell',
-        'OrderBookView': 'Order book layout',
-        'OrderBookViewDiagonal': 'Two-sided layout',
-        'OrderBookViewStacked': 'Price, size and total',
-        'RemoveOrderbook': 'Remove this order book',
-        'Spread: {0}': 'Spread: {0}',
-        'ToggleDepthChart': 'Show the depth chart',
-        'YourOrder': 'Your order',
-    };
+    // The demo speaks two languages — demo/i18n.js holds both dictionaries.
+    // `controls` covers every key the package passes to `t()` (the list is
+    // `translation-keys.json`, generated from src/), so flipping the language
+    // and re-creating the panels re-captions the whole board: the controls
+    // hardcode no wording. A key missing from the active dictionary is logged
+    // rather than rendered blank, so a control that grows a caption is visible
+    // on this page at once.
+    let LANG = window.SSDemoText.en;
 
     function translate(key, ...args) {
-        let text = TEXT[key];
+        let text = LANG.controls[key];
         if (text === undefined) {
-            logLine('warn', `t("${key}") has no translation — falling back to the key`);
+            logLine('warn', `t("${key}") has no ${LANG.code} translation — falling back to the key`);
             text = String(key);
         }
         return text.replace(/\{(\d+)\}/g, (match, index) => {
@@ -421,14 +296,16 @@
         return OrderTypes.Limit;
     }
 
-    const STATUS_TEXT = {
-        [OrderStates.PendingRisk]: 'Pending',
-        [OrderStates.Sent]: 'Sent',
-        [OrderStates.Active]: 'Active',
-        [OrderStates.PartiallyFilled]: 'Partial',
-        [OrderStates.Filled]: 'Filled',
-        [OrderStates.Rejected]: 'Rejected',
-        [OrderStates.Cancelled]: 'Cancelled',
+    // Wire states mapped to meanings; the wording behind each meaning lives in
+    // the language dictionaries, because status text is the host's to say.
+    const STATUS_KEYS = {
+        [OrderStates.PendingRisk]: 'pending',
+        [OrderStates.Sent]: 'sent',
+        [OrderStates.Active]: 'active',
+        [OrderStates.PartiallyFilled]: 'partial',
+        [OrderStates.Filled]: 'filled',
+        [OrderStates.Rejected]: 'rejected',
+        [OrderStates.Cancelled]: 'cancelled',
     };
 
     // The two class methods are the one place a host has to agree with the shipped
@@ -454,7 +331,7 @@
     }
 
     const presentation = {
-        sideText: (side) => (isBuy(side) ? 'Buy' : 'Sell'),
+        sideText: (side) => (isBuy(side) ? LANG.side.buy : LANG.side.sell),
         // The predicate behind the two above: which of `0`, `"Buy"` and `"BUY"`
         // means a buy is this host's knowledge, not any control's.
         isBuy,
@@ -465,7 +342,7 @@
             if (kind === OrderTypes.Conditional || stopPrice) return limitPrice ? 'STP-LMT' : 'STP';
             return 'LMT';
         },
-        statusText: (status) => STATUS_TEXT[status] || String(status),
+        statusText: (status) => LANG.status[STATUS_KEYS[status]] || String(status),
         sideClass: (side) => (isBuy(side) ? SIDE_BUY_CLASS : SIDE_SELL_CLASS),
         // The empty string is a legitimate answer for "no colour" — a flat P&L is
         // neither a win nor a loss.
@@ -1299,13 +1176,13 @@
 
         const note = document.createElement('span');
         note.className = 'hostlog-note';
-        note.textContent = 'every line is a call a control made into the demo host';
+        note.textContent = LANG.page.hostLogNote;
         actions.appendChild(note);
 
         const clear = document.createElement('button');
         clear.type = 'button';
         clear.className = 'tbtn tbtn-sm';
-        clear.textContent = 'Clear';
+        clear.textContent = LANG.page.clearLog;
         clear.addEventListener('click', () => { logEl.textContent = ''; });
         actions.appendChild(clear);
 
@@ -1333,7 +1210,7 @@
     const tabSlots = new Map();
 
     const PANELS = {
-        chart: { label: 'chart', title: () => `Chart · ${BOOK_SYMBOL}`, create: createChartPanel },
+        chart: { label: 'chart', title: () => `${LANG.page.chart} · ${BOOK_SYMBOL}`, create: createChartPanel },
         [ControlTypes.Watchlist]: { label: 'watchlist', title: () => translate('Watchlist'), create: createWatchlist, lift: ['.watchlist-search-row'] },
         [ControlTypes.Positions]: { label: 'positions', title: () => translate('Positions'), create: createPositions },
         [ControlTypes.ActiveOrders]: { label: 'active orders', title: () => translate('ActiveOrders'), create: createOrders },
@@ -1341,7 +1218,7 @@
         [ControlTypes.OrderEntry]: { label: 'order entry', title: () => translate('OrderEntry'), create: createOrderEntry },
         [ControlTypes.TradeFeed]: { label: 'trade feed', title: () => translate('TradeFeed'), create: createTradeFeed },
         [ControlTypes.OrderBook]: { label: 'order book', title: () => translate('OrderBook'), create: createOrderBook },
-        hostlog: { label: 'host log', title: () => 'Host port traffic', create: createHostLog, lift: ['.hostlog-actions'] },
+        hostlog: { label: 'host log', title: () => LANG.page.hostLog, create: createHostLog, lift: ['.hostlog-actions'] },
     };
 
     function makeTab(panelId) {
@@ -1560,11 +1437,26 @@
 
     // ------------------------------------------------------------------ startup
 
+    // The page's own chrome — buttons, statusbar, the language button itself.
+    // Everything inside the panels is re-captioned by re-creating the controls,
+    // which is what the language switch below does.
+    function applyPageText() {
+        document.getElementById('tickBtn').textContent = LANG.page.simulateTick;
+        document.getElementById('autoBtn').innerHTML = '<span class="dot"></span> ' + LANG.page.autoTicks;
+        document.getElementById('resetBtn').textContent = LANG.page.resetData;
+        document.getElementById('layoutBtn').textContent = LANG.page.resetLayout;
+        const light = document.documentElement.getAttribute('data-bs-theme') === 'light';
+        document.getElementById('themeBtn').textContent = light ? LANG.page.themeDark : LANG.page.themeLight;
+        document.getElementById('langBtn').textContent = LANG.switchTo;
+        document.querySelector('.demo-statusbar .status-left').textContent = LANG.page.statusLeft;
+    }
+
     resetState();
     seedBaselines();
     initDock();
     pushPrices();
     pushOrderEntry();
+    applyPageText();
 
     document.getElementById('tickBtn').addEventListener('click', tick);
     document.getElementById('autoBtn').addEventListener('click', (e) => toggleAuto(e.currentTarget));
@@ -1606,12 +1498,26 @@
     // The package's own theme.css keys its light palette off `data-bs-theme`, and
     // demo.css re-declares the same tokens under the same attribute — one switch
     // moves the page, every panel, the dockview chrome and the chart at once.
-    document.getElementById('themeBtn').addEventListener('click', (e) => {
+    document.getElementById('themeBtn').addEventListener('click', () => {
         const root = document.documentElement;
         const light = root.getAttribute('data-bs-theme') === 'light';
         root.setAttribute('data-bs-theme', light ? 'dark' : 'light');
-        e.currentTarget.innerHTML = light ? '&#9788; Light' : '&#9789; Dark';
+        applyPageText();
         applyChartTheme();
+    });
+
+    // The proof the controls hardcode nothing: answer `t()` from the other
+    // dictionary and re-create every panel through its host. The board comes
+    // back fully re-captioned — the package brought no words of its own.
+    document.getElementById('langBtn').addEventListener('click', () => {
+        LANG = LANG === window.SSDemoText.en ? window.SSDemoText.zh : window.SSDemoText.en;
+        document.documentElement.lang = LANG.htmlLang;
+        logLine('act', `language switched to ${LANG.code} — re-creating every control through its host`);
+        applyPageText();
+        dockApi.clear();
+        buildDefaultLayout();
+        pushPrices();
+        pushOrderEntry();
     });
 
     const clockEl = document.getElementById('statusClock');
