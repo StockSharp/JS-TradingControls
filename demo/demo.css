@@ -280,6 +280,27 @@ body {
 
 .terminal-tab-actions .watchlist-search-input { width: 100%; padding: 2px 8px; font-size: 11px; }
 
+/* ------------------------------------------------------------------ mobile */
+
+/* The board itself goes single-column on a phone (demo.js builds the stack and
+   pins the dock's height); the chrome around it just has to wrap and shed the
+   parts a narrow screen has no room for. */
+@media (max-width: 768px) {
+    .demo-header {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 44px;
+        padding: 6px 10px;
+        row-gap: 6px;
+    }
+
+    .demo-header .sub { display: none; }
+    .tbtn { padding: 4px 8px; font-size: 11px; }
+
+    .demo-statusbar { grid-template-columns: 1fr auto; }
+    .demo-statusbar .status-left { display: none; }
+}
+
 /* --------------------------------------------------------------- statusbar */
 
 .demo-statusbar {

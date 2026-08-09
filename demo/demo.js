@@ -1331,10 +1331,37 @@
         }, position ? { position } : null, sizing || null));
     }
 
+    // The same breakpoint the terminal (and this page's `maxDepth` dep) tests.
+    const MOBILE_BREAKPOINT = window.matchMedia('(max-width: 768px)');
+
+    // The phone board: one column, every panel under the previous, the page
+    // scrolls. Order and height per row — the pad and the ladder need more room
+    // than a blotter.
+    const MOBILE_ROWS = [
+        ['chart', 340],
+        [ControlTypes.OrderBook, 400],
+        [ControlTypes.OrderEntry, 440],
+        [ControlTypes.TradeFeed, 360],
+        [ControlTypes.Watchlist, 400],
+        [ControlTypes.ActiveOrders, 300],
+        [ControlTypes.TradeHistory, 300],
+        [ControlTypes.Positions, 300],
+        ['hostlog', 300],
+    ];
+
     // The terminal's default board: chart on the left, the tape and the ladder
     // to its right, the watchlist under the ladder, the order pad and the
-    // blotters (tabbed) along the bottom.
+    // blotters (tabbed) along the bottom. On a phone — the single column above.
     function buildDefaultLayout() {
+        if (MOBILE_BREAKPOINT.matches) {
+            buildMobileLayout();
+            return;
+        }
+
+        // The dock's height is the CSS rule's business again after a mobile
+        // build pinned it.
+        dockEl.style.height = '';
+
         addDockPanel('chart', null);
         addDockPanel(ControlTypes.OrderEntry, { referencePanel: 'chart', direction: 'below' }, { initialHeight: 260 });
         addDockPanel(ControlTypes.TradeFeed, { referencePanel: 'chart', direction: 'right' }, { initialWidth: 280 });
@@ -1352,6 +1379,28 @@
         // built; the real proportions are pushed once dockview has laid out —
         // the same double-rAF the terminal uses.
         requestAnimationFrame(() => requestAnimationFrame(applyRatios));
+    }
+
+    function buildMobileLayout() {
+        // The dock is as tall as its rows add up to and the page scrolls
+        // through it — a fixed height, because dockview distributes whatever
+        // box it is given and a phone board must not squeeze nine panels into
+        // one screen.
+        dockEl.style.height = MOBILE_ROWS.reduce((sum, [, height]) => sum + height, 0) + 'px';
+
+        let previous = null;
+        for (const [kind] of MOBILE_ROWS) {
+            addDockPanel(kind, previous ? { referencePanel: previous, direction: 'below' } : null);
+            previous = kind;
+        }
+
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (!dockApi) return;
+            for (const [kind, height] of MOBILE_ROWS) {
+                const panel = dockApi.getPanel(kind);
+                if (panel && panel.group) panel.group.api.setSize({ height });
+            }
+        }));
     }
 
     function applyRatios() {
@@ -1489,6 +1538,16 @@
     // equivalent of the old per-cell "Create it again" button.
     document.getElementById('layoutBtn').addEventListener('click', () => {
         logLine('act', 'reset layout — rebuilding the default dock');
+        dockApi.clear();
+        buildDefaultLayout();
+        pushPrices();
+        pushOrderEntry();
+    });
+
+    // Crossing the breakpoint rebuilds the board in the other shape — the same
+    // path the Reset layout button takes.
+    MOBILE_BREAKPOINT.addEventListener('change', () => {
+        logLine('act', `viewport crossed the mobile breakpoint — rebuilding as ${MOBILE_BREAKPOINT.matches ? 'a single column' : 'the desktop board'}`);
         dockApi.clear();
         buildDefaultLayout();
         pushPrices();
