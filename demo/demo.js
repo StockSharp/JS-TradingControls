@@ -7,9 +7,9 @@
 // translator, no settings singleton, no panel registry and no socket, and every
 // control asserts the port is complete (`assertHost`) before it renders. The
 // real implementation of that port lives in the StockSharp web terminal these
-// four controls were extracted from — the page that owns the docking manager,
-// the translation dictionary, the user's synced settings, the market-data
-// socket and the trading API client.
+// controls were extracted from — the page that owns the docking manager, the
+// translation dictionary, the user's synced settings, the market-data socket
+// and the trading API client.
 //
 // What follows implements the same port honestly against sample data: `t()`
 // answers from a dictionary and says so in the log when a key is missing, the
@@ -17,6 +17,13 @@
 // market-data calls resolve from the arrays below instead of reaching a
 // network. Nothing on this page is drawn by hand — every table, button, tab and
 // inline edit comes out of the package.
+//
+// The page itself is laid out by dockview-core — the same docking library the
+// StockSharp web terminal runs — and the chart panel is @stocksharp/chart, so
+// this demo is assembled the way the terminal is: every panel is a dockview
+// panel, its chrome is the dockview tab, and the control's own header row is
+// lifted into that tab (the controls' markup documents `.panel-header` as
+// designed for exactly this lift).
 // ---------------------------------------------------------------------------
 
 (function () {
@@ -36,6 +43,9 @@
         MarketDataLevels,
         PRESENTATION_CLASSES,
     } = window.SSTradingControls;
+
+    // dockview-core's UMD build registers under its package name.
+    const DV = window['dockview-core'];
 
     const PORTFOLIO_ID = 7;
 
@@ -146,7 +156,12 @@
 
     // --------------------------------------------------------------- page chrome
 
-    const logEl = document.getElementById('log');
+    // The log lives in a dockview panel that may not be mounted yet (or may be
+    // closed), so the element exists up front and the panel adopts it — lines
+    // logged while it is offscreen are simply there when it comes back.
+    const logEl = document.createElement('div');
+    logEl.className = 'log';
+
     const tickerEl = document.getElementById('ticker');
 
     function logLine(kind, text) {
@@ -571,10 +586,6 @@
                 api,
                 marketData,
                 portfolioId: () => PORTFOLIO_ID,
-                // Host-owned UI. None of the four shipped controls calls it (the
-                // order book and the order entry pad do), so the demo logs the
-                // request and picks nothing — a stub is the documented answer for
-                // an adopter that takes only these four.
                 // Host-owned UI: the control asks, the host puts a picker on
                 // screen, and the control learns only what was chosen — nothing
                 // at all if the user dismisses it.
@@ -591,9 +602,12 @@
                 return true;
             },
             log: (message) => logLine('warn', `log: ${message}`),
-            close: () => closePanel(kind),
-            // Uncalled by these four controls; the port requires them anyway
-            // because the three controls still on the terminal's side call them.
+            // The panel's × (in the dockview tab) and this call end in the same
+            // place: the panel leaves the dock and the renderer disposes the
+            // widget.
+            close: () => closeDockPanel(kind),
+            // Uncalled by the four blotters; the port requires them anyway
+            // because the terminal's other controls call them.
             spawn: (panelState) => logLine('act', `${kind}: spawn(${JSON.stringify(panelState)}) — this demo hosts one panel per kind`),
             persistState: (patch) => logLine('dim', `${kind}: persistState(${JSON.stringify(patch)})`),
             saveLayout: () => logLine('dim', `${kind}: saveLayout()`),
@@ -1061,9 +1075,8 @@
             pixelRatio: () => window.devicePixelRatio || 1,
         });
         // The host drives the symbol, exactly as a terminal drives its
-        // follows-active ladder. The first snapshot waits for `openPanel` to
-        // register the panel, because frames reach a ladder through the host's
-        // fan-out and not through the reference that built it.
+        // follows-active ladder. The first snapshot arrives through the host's
+        // fan-out once the subscription lands, not through this reference.
         widget.setSymbol(BOOK_SYMBOL);
         return widget;
     }
@@ -1124,47 +1137,389 @@
         return widget;
     }
 
-    const PANELS = {
-        [ControlTypes.Watchlist]: { hostId: 'watchlistHost', label: 'watchlist', create: createWatchlist },
-        [ControlTypes.Positions]: { hostId: 'positionsHost', label: 'positions', create: createPositions },
-        [ControlTypes.ActiveOrders]: { hostId: 'ordersHost', label: 'active orders', create: createOrders },
-        [ControlTypes.TradeHistory]: { hostId: 'historyHost', label: 'trade history', create: createHistory },
-        [ControlTypes.OrderEntry]: { hostId: 'orderEntryHost', label: 'order entry', create: createOrderEntry },
-        [ControlTypes.TradeFeed]: { hostId: 'tradefeedHost', label: 'trade feed', create: createTradeFeed },
-        [ControlTypes.OrderBook]: { hostId: 'orderbookHost', label: 'order book', create: createOrderBook },
-    };
+    // -------------------------------------------------------------- chart panel
 
-    function openPanel(kind) {
-        const panel = PANELS[kind];
-        const hostEl = document.getElementById(panel.hostId);
-        hostEl.textContent = '';
-        live.set(kind, panel.create(hostEl));
-        if (kind === ControlTypes.Watchlist) pushPrices();
-        if (kind === ControlTypes.OrderEntry) pushOrderEntry();
+    // The chart is @stocksharp/chart — the engine the terminal's chart panel
+    // runs — fed by the same price simulation the rest of this page ticks on.
+    // Ten-second bars, so the auto-tick loop visibly builds candles instead of
+    // nudging one bar for five minutes.
+    const CHART_TF = 10;
+    const CHART_BARS = 240;
+
+    let chartPanel = null;
+
+    // The library paints from explicit colour strings, not CSS variables, so the
+    // host reads its own tokens and hands them over — and does it again when the
+    // theme flips.
+    function chartColors() {
+        const styles = getComputedStyle(document.documentElement);
+        const token = (name, absent) => (styles.getPropertyValue(name) || '').trim() || absent;
+        return {
+            bg: token('--t-panel', '#131820'),
+            text: token('--t-text-dim', '#6b7a8d'),
+            grid: token('--t-border', '#2a3546'),
+            up: token('--t-green', '#26a69a'),
+            down: token('--t-red', '#ef5350'),
+            mono: token('--t-mono', 'monospace'),
+        };
     }
 
-    // `host.close()` — the panel's × asked to go away. The watchlist and the trade
-    // history dispose themselves first and the other two leave it to the host, so
-    // disposing here is unconditional (a second dispose is a no-op).
-    function closePanel(kind) {
-        const panel = PANELS[kind];
-        const control = live.get(kind);
-        if (control) control.dispose();
-        live.delete(kind);
-        logLine('act', `close() — the ${panel.label} panel asked the host to remove it`);
+    function candleColors(colors) {
+        return {
+            upColor: colors.up, downColor: colors.down,
+            borderUpColor: colors.up, borderDownColor: colors.down,
+            wickUpColor: colors.up, wickDownColor: colors.down,
+        };
+    }
 
-        const hostEl = document.getElementById(panel.hostId);
-        hostEl.textContent = '';
-        const placeholder = document.createElement('div');
-        placeholder.className = 'cell-closed';
-        placeholder.appendChild(document.createTextNode(`The ${panel.label} panel closed itself through the host port.`));
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'tbtn';
-        button.textContent = `Create it again`;
-        button.addEventListener('click', () => openPanel(kind));
-        placeholder.appendChild(button);
-        hostEl.appendChild(placeholder);
+    // A random walk backwards from the current price, so history ends exactly
+    // where the live simulation starts. `time` is Unix seconds, ascending.
+    function seedChartData() {
+        const u = universeOf(BOOK_SYMBOL);
+        const nowBar = Math.floor(Date.now() / 1000 / CHART_TF) * CHART_TF;
+        const bars = [];
+        let close = u.price;
+        for (let i = 0; i < CHART_BARS; i++) {
+            const drift = (Math.random() - 0.5) * 2 * u.vol * 3;
+            const open = Number((close * (1 - drift)).toFixed(u.dp));
+            const high = Number((Math.max(open, close) * (1 + Math.random() * u.vol)).toFixed(u.dp));
+            const low = Number((Math.min(open, close) * (1 - Math.random() * u.vol)).toFixed(u.dp));
+            bars.unshift({
+                time: nowBar - i * CHART_TF,
+                open, high, low, close,
+                volume: Number((Math.random() * 6 + 0.2).toFixed(3)),
+            });
+            close = open;
+        }
+        return bars;
+    }
+
+    function loadChartData(panel) {
+        const bars = seedChartData();
+        panel.candles.setData(bars.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+        panel.volume.setData(bars.map(({ time, volume }) => ({ time, value: volume })));
+        const last = bars[bars.length - 1];
+        panel.last = { time: last.time, open: last.open, high: last.high, low: last.low, close: last.close };
+        panel.lastVol = { time: last.time, value: last.volume };
+        panel.chart.timeScale().fitContent();
+    }
+
+    function createChartPanel(hostEl) {
+        const wrap = document.createElement('div');
+        wrap.className = 'chart-wrap';
+        hostEl.appendChild(wrap);
+
+        const colors = chartColors();
+        const chart = SSChart.createChart(wrap, {
+            layout: {
+                background: { type: 'solid', color: colors.bg },
+                textColor: colors.text,
+                fontFamily: colors.mono,
+                fontSize: 11,
+                attributionLogo: false,
+            },
+            grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
+            crosshair: { mode: SSChart.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: colors.grid },
+            timeScale: { borderColor: colors.grid, timeVisible: true, secondsVisible: true, mode: 'ordinal' },
+        });
+
+        const candles = chart.addSeries(SSChart.CandlestickSeries, candleColors(colors));
+        // A theme-neutral grey on purpose: per-bar colouring would have to be
+        // recomputed on every theme flip for no demo value.
+        const volume = chart.addSeries(SSChart.HistogramSeries, {
+            color: 'rgba(128, 138, 153, 0.3)',
+            priceFormat: { type: 'volume' },
+            priceScaleId: '',
+        });
+        volume.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+
+        const panel = { chart, candles, volume, last: null, lastVol: null };
+        loadChartData(panel);
+
+        // Dockview resizes the panel box; the chart is told. Through resize(),
+        // not applyOptions: the engine sizes its canvases only through the
+        // former — the latter records the numbers without applying them.
+        const ro = new ResizeObserver(() => {
+            if (wrap.clientWidth > 0 && wrap.clientHeight > 0)
+                chart.resize(wrap.clientWidth, wrap.clientHeight);
+        });
+        ro.observe(wrap);
+
+        chartPanel = panel;
+        return {
+            dispose() {
+                ro.disconnect();
+                chart.remove();
+                chartPanel = null;
+            },
+        };
+    }
+
+    function updateChartTick() {
+        if (!chartPanel) return;
+        const u = universeOf(BOOK_SYMBOL);
+        const time = Math.floor(Date.now() / 1000 / CHART_TF) * CHART_TF;
+        const panel = chartPanel;
+
+        if (panel.last && panel.last.time === time) {
+            panel.last.close = u.price;
+            if (u.price > panel.last.high) panel.last.high = u.price;
+            if (u.price < panel.last.low) panel.last.low = u.price;
+            panel.lastVol.value = Number((panel.lastVol.value + Math.random() * 0.8).toFixed(3));
+        } else {
+            panel.last = { time, open: u.price, high: u.price, low: u.price, close: u.price };
+            panel.lastVol = { time, value: Number((Math.random() * 0.8 + 0.1).toFixed(3)) };
+        }
+
+        // Same time mutates the forming bar, a newer time appends the next one.
+        panel.candles.update({ ...panel.last });
+        panel.volume.update({ ...panel.lastVol });
+    }
+
+    function applyChartTheme() {
+        if (!chartPanel) return;
+        const colors = chartColors();
+        chartPanel.chart.applyOptions({
+            layout: { background: { type: 'solid', color: colors.bg }, textColor: colors.text },
+            grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
+            rightPriceScale: { borderColor: colors.grid },
+            timeScale: { borderColor: colors.grid },
+        });
+        chartPanel.candles.applyOptions(candleColors(colors));
+    }
+
+    // ---------------------------------------------------------- host port log
+
+    function createHostLog(hostEl) {
+        // The buttons ride in an element the tab lift picks up, so the log gets
+        // the same single-row chrome every other panel has.
+        const actions = document.createElement('div');
+        actions.className = 'hostlog-actions';
+
+        const note = document.createElement('span');
+        note.className = 'hostlog-note';
+        note.textContent = 'every line is a call a control made into the demo host';
+        actions.appendChild(note);
+
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'tbtn tbtn-sm';
+        clear.textContent = 'Clear';
+        clear.addEventListener('click', () => { logEl.textContent = ''; });
+        actions.appendChild(clear);
+
+        hostEl.appendChild(actions);
+        hostEl.appendChild(logEl);
+        return {
+            dispose() {
+                // The element outlives the panel so the log survives a close —
+                // reopening (Reset layout) adopts it with its history intact.
+                logEl.remove();
+            },
+        };
+    }
+
+    // ----------------------------------------------------------------- docking
+
+    // The same assembly the terminal does: dockview owns the board, every panel
+    // is a content renderer that mounts a widget, and a custom tab carries the
+    // title, the panel's own header controls (lifted), and the ×.
+    const dockEl = document.getElementById('dockHost');
+    let dockApi = null;
+
+    // Where each panel's lifted header controls land — filled by the tab
+    // renderer, read by the lift.
+    const tabSlots = new Map();
+
+    const PANELS = {
+        chart: { label: 'chart', title: () => `Chart · ${BOOK_SYMBOL}`, create: createChartPanel },
+        [ControlTypes.Watchlist]: { label: 'watchlist', title: () => translate('Watchlist'), create: createWatchlist, lift: ['.watchlist-search-row'] },
+        [ControlTypes.Positions]: { label: 'positions', title: () => translate('Positions'), create: createPositions },
+        [ControlTypes.ActiveOrders]: { label: 'active orders', title: () => translate('ActiveOrders'), create: createOrders },
+        [ControlTypes.TradeHistory]: { label: 'trade history', title: () => translate('TradeHistory'), create: createHistory },
+        [ControlTypes.OrderEntry]: { label: 'order entry', title: () => translate('OrderEntry'), create: createOrderEntry },
+        [ControlTypes.TradeFeed]: { label: 'trade feed', title: () => translate('TradeFeed'), create: createTradeFeed },
+        [ControlTypes.OrderBook]: { label: 'order book', title: () => translate('OrderBook'), create: createOrderBook },
+        hostlog: { label: 'host log', title: () => 'Host port traffic', create: createHostLog, lift: ['.hostlog-actions'] },
+    };
+
+    function makeTab(panelId) {
+        const element = document.createElement('div');
+        element.className = 'terminal-tab';
+
+        const title = document.createElement('span');
+        title.className = 'terminal-tab-title';
+
+        const actions = document.createElement('div');
+        actions.className = 'terminal-tab-actions';
+        // Poking a lifted control must not start a tab drag.
+        for (const type of ['pointerdown', 'mousedown', 'click'])
+            actions.addEventListener(type, (e) => e.stopPropagation());
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'terminal-tab-close';
+        close.setAttribute('aria-label', translate('ClosePanel'));
+        close.textContent = '✕';
+
+        element.append(title, actions, close);
+        tabSlots.set(panelId, actions);
+
+        let titleWatch = null;
+        return {
+            element,
+            init(params) {
+                title.textContent = params.api.title || '';
+                titleWatch = params.api.onDidTitleChange(() => { title.textContent = params.api.title || ''; });
+                close.addEventListener('pointerdown', (e) => e.stopPropagation());
+                close.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    params.api.close();
+                });
+            },
+            dispose() {
+                if (titleWatch) titleWatch.dispose();
+                tabSlots.delete(panelId);
+            },
+        };
+    }
+
+    // The move the controls' markup was designed for (their comments say so):
+    // `.panel-header`'s children go to the dockview tab, so a panel has one row
+    // of chrome, not two. The bare caption span and the control's own × stay
+    // behind — the tab already carries a title and a close.
+    function liftHeaderToTab(kind, rootEl) {
+        const slot = tabSlots.get(kind);
+        if (!slot) return;
+
+        const header = rootEl.querySelector('.panel-header');
+        if (header) {
+            for (const child of Array.from(header.children)) {
+                if (child.tagName === 'SPAN' && !child.className) continue;
+                if (child.classList.contains('panel-close-btn') || child.classList.contains('ob-close-btn')) continue;
+                slot.appendChild(child);
+            }
+            header.style.display = 'none';
+        }
+
+        for (const selector of PANELS[kind].lift || []) {
+            const extra = rootEl.querySelector(selector);
+            if (extra) slot.appendChild(extra);
+        }
+    }
+
+    function makeRenderer(kind) {
+        const panel = PANELS[kind];
+        const element = document.createElement('div');
+        element.className = 'terminal-dock-panel';
+
+        if (!panel) {
+            element.textContent = `[unknown panel ${kind}]`;
+            return { element, init() { } };
+        }
+
+        let widget = null;
+        return {
+            element,
+            init() {
+                widget = panel.create(element);
+                if (widget && kind !== 'chart' && kind !== 'hostlog') live.set(kind, widget);
+                // Next tick, because the tab element joins the DOM as part of
+                // the same addPanel this init runs in.
+                setTimeout(() => liftHeaderToTab(kind, element), 0);
+            },
+            dispose() {
+                if (widget && typeof widget.dispose === 'function') {
+                    try { widget.dispose(); } catch (err) { logLine('warn', `${panel.label}: dispose failed — ${err.message}`); }
+                }
+                widget = null;
+                live.delete(kind);
+                logLine('act', `the ${panel.label} panel left the dock`);
+            },
+        };
+    }
+
+    function closeDockPanel(kind) {
+        if (!dockApi) return;
+        const panel = dockApi.getPanel(kind);
+        if (panel) dockApi.removePanel(panel);
+    }
+
+    function addDockPanel(kind, position, sizing) {
+        dockApi.addPanel(Object.assign({
+            id: kind,
+            component: kind,
+            title: PANELS[kind].title(),
+        }, position ? { position } : null, sizing || null));
+    }
+
+    // The terminal's default board: chart on the left, the tape and the ladder
+    // to its right, the watchlist under the ladder, the order pad and the
+    // blotters (tabbed) along the bottom.
+    function buildDefaultLayout() {
+        addDockPanel('chart', null);
+        addDockPanel(ControlTypes.OrderEntry, { referencePanel: 'chart', direction: 'below' }, { initialHeight: 260 });
+        addDockPanel(ControlTypes.TradeFeed, { referencePanel: 'chart', direction: 'right' }, { initialWidth: 280 });
+        addDockPanel(ControlTypes.OrderBook, { referencePanel: ControlTypes.TradeFeed, direction: 'right' }, { initialWidth: 340 });
+        addDockPanel(ControlTypes.Watchlist, { referencePanel: ControlTypes.OrderBook, direction: 'below' }, { initialHeight: 300 });
+        addDockPanel(ControlTypes.ActiveOrders, { referencePanel: ControlTypes.OrderEntry, direction: 'right' });
+        addDockPanel(ControlTypes.TradeHistory, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel(ControlTypes.Positions, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel('hostlog', { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+
+        const orders = dockApi.getPanel(ControlTypes.ActiveOrders);
+        if (orders) orders.api.setActive();
+
+        // initialWidth/initialHeight are advisory while the tree is being
+        // built; the real proportions are pushed once dockview has laid out —
+        // the same double-rAF the terminal uses.
+        requestAnimationFrame(() => requestAnimationFrame(applyRatios));
+    }
+
+    function applyRatios() {
+        if (!dockApi) return;
+        const width = dockEl.clientWidth || 1440;
+        const height = dockEl.clientHeight || 900;
+        const setSize = (kind, box) => {
+            const panel = dockApi.getPanel(kind);
+            if (panel && panel.group) panel.group.api.setSize(box);
+        };
+        setSize('chart', { width: Math.floor(width * 0.50) });
+        setSize(ControlTypes.TradeFeed, { width: Math.floor(width * 0.22) });
+        setSize(ControlTypes.OrderBook, { width: Math.floor(width * 0.28) });
+        setSize(ControlTypes.OrderEntry, { height: 260 });
+        // The right column splits between the ladder and the watchlist; the
+        // ladder gets the larger share — ten levels a side need the room.
+        setSize(ControlTypes.Watchlist, { height: Math.floor((height - 260) * 0.42) });
+    }
+
+    function initDock() {
+        dockApi = DV.createDockview(dockEl, {
+            // themeDark supplies dockview's structural styling; the colours are
+            // re-pointed at the --t-* tokens in demo.css, so the light theme
+            // works by flipping the tokens, not the dockview theme.
+            theme: DV.themeDark,
+            // Everything renders at once: this page is a demo of nine live
+            // panels, and the port log at the bottom should show them all
+            // registering at boot.
+            defaultRenderer: 'always',
+            createComponent: (options) => makeRenderer(options.name),
+            defaultTabComponent: 'terminalTab',
+            createTabComponent: (options) => makeTab(options.id),
+            // A lone tab spans its whole strip, so lifted header controls
+            // right-align against the panel edge.
+            singleTabMode: 'fullwidth',
+        });
+
+        const observer = new ResizeObserver(() => {
+            const w = dockEl.clientWidth;
+            const h = dockEl.clientHeight;
+            if (w > 0 && h > 0) dockApi.layout(w, h, true);
+        });
+        observer.observe(dockEl);
+
+        buildDefaultLayout();
     }
 
     // -------------------------------------------------------------------- ticks
@@ -1180,6 +1535,7 @@
         pushOrderEntry();
         pushTape();
         pushBookFrames();
+        updateChartTick();
 
         const positions = live.get(ControlTypes.Positions);
         if (positions) positions.update(clone(state.positions.map(markToMarket)));
@@ -1206,16 +1562,18 @@
 
     resetState();
     seedBaselines();
-    for (const kind of Object.keys(PANELS)) openPanel(kind);
+    initDock();
+    pushPrices();
+    pushOrderEntry();
 
     document.getElementById('tickBtn').addEventListener('click', tick);
     document.getElementById('autoBtn').addEventListener('click', (e) => toggleAuto(e.currentTarget));
-    document.getElementById('clearLogBtn').addEventListener('click', () => { logEl.textContent = ''; });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
         resetState();
         logLine('act', 'reset — sample prices, positions, orders and fills restored');
         pushPrices();
+        pushOrderEntry();
         const positions = live.get(ControlTypes.Positions);
         if (positions) {
             positions.update(clone(state.positions));
@@ -1230,17 +1588,36 @@
         books.clear();
         const orderBook = live.get(ControlTypes.OrderBook);
         if (orderBook && orderBook.getSymbol()) sendBookSnapshot(orderBook.getSymbol());
+        // The chart's history random-walked from the old price; reseed it
+        // around the restored one.
+        if (chartPanel) loadChartData(chartPanel);
+    });
+
+    // Closed a panel? This puts the whole default board back — the dockview
+    // equivalent of the old per-cell "Create it again" button.
+    document.getElementById('layoutBtn').addEventListener('click', () => {
+        logLine('act', 'reset layout — rebuilding the default dock');
+        dockApi.clear();
+        buildDefaultLayout();
+        pushPrices();
+        pushOrderEntry();
     });
 
     // The package's own theme.css keys its light palette off `data-bs-theme`, and
     // demo.css re-declares the same tokens under the same attribute — one switch
-    // moves the page and every panel on it.
+    // moves the page, every panel, the dockview chrome and the chart at once.
     document.getElementById('themeBtn').addEventListener('click', (e) => {
         const root = document.documentElement;
         const light = root.getAttribute('data-bs-theme') === 'light';
         root.setAttribute('data-bs-theme', light ? 'dark' : 'light');
         e.currentTarget.innerHTML = light ? '&#9788; Light' : '&#9789; Dark';
+        applyChartTheme();
     });
 
-    logLine('act', 'demo host ready — four controls created over one TradingHost each');
+    const clockEl = document.getElementById('statusClock');
+    const showClock = () => { clockEl.textContent = new Date().toLocaleTimeString('en-US', { hour12: false }); };
+    showClock();
+    setInterval(showClock, 1000);
+
+    logLine('act', 'demo host ready — every panel below is a live control over its own TradingHost');
 })();

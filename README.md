@@ -17,11 +17,14 @@ the outside world through exactly one object — a `TradingHost`.
 [GitHub repository](https://github.com/StockSharp/JS-TradingControls) ·
 [Issue tracker](https://github.com/StockSharp/JS-TradingControls/issues)
 
-![Watchlist, positions, open orders and trade history, with the host port traffic below](screenshots/panels.jpg)
+![The demo board: a candlestick chart, the trade feed, the order book, the watchlist, the order entry pad and the tabbed blotters, docked the way the terminal docks them](screenshots/panels.jpg)
 
 The page above is `demo/` — the published bundle over a demo `TradingHost`, no
-server and no network. The log along the bottom is every call the controls made
-into that host, which is the whole of what they can reach.
+server and no network, laid out by the same dockview-core the StockSharp web
+terminal uses, with an [`@stocksharp/chart`](https://www.npmjs.com/package/@stocksharp/chart)
+candlestick panel fed by the same simulated prices. The **Host port traffic**
+tab records every call the controls made into that host, which is the whole of
+what they can reach.
 
 ## Quick start
 
