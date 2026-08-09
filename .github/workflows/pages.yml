@@ -1,0 +1,73 @@
+name: Deploy demo to GitHub Pages
+
+# Builds the sstradingcontrols bundle and publishes the demo, so the page in
+# the README is a thing you can click rather than a screenshot:
+# https://stocksharp.github.io/JS-TradingControls/demo/
+#
+# Pages has to be switched on for the repository first, by hand:
+# Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+# actions/configure-pages can in principle do that itself, but the token this
+# job runs with is not allowed to (tried in JS-Grids, it fails), so the switch
+# stays manual.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build            # -> dist/sstradingcontrols.js
+      # The demo is the package's own claim about itself, so it does not go up
+      # unless the suite that guards those claims passes.
+      - run: npm test
+      - name: Stage site
+        run: |
+          mkdir -p _site/demo _site/dist _site/styles
+          mkdir -p _site/node_modules/dockview-core/dist/styles
+          mkdir -p _site/node_modules/@stocksharp/chart/dist
+          cp -r demo/. _site/demo/
+          cp -r dist/. _site/dist/
+          cp -r styles/. _site/styles/
+          # The demo page loads dockview-core and the sschart bundle straight
+          # from node_modules, so the exact files it names travel with it under
+          # the same relative paths.
+          cp node_modules/dockview-core/dist/dockview-core.min.noStyle.js _site/node_modules/dockview-core/dist/
+          cp node_modules/dockview-core/dist/dockview-core.min.noStyle.js.map _site/node_modules/dockview-core/dist/
+          cp node_modules/dockview-core/dist/styles/dockview.css _site/node_modules/dockview-core/dist/styles/
+          cp node_modules/@stocksharp/chart/dist/sschart.js _site/node_modules/@stocksharp/chart/dist/
+          cp node_modules/@stocksharp/chart/dist/sschart.js.map _site/node_modules/@stocksharp/chart/dist/
+          printf '<!doctype html><meta http-equiv="refresh" content="0; url=demo/index.html">' > _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

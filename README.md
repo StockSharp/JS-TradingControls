@@ -13,6 +13,7 @@ Each control builds its own DOM, renders its own table through
 [`@stocksharp/grids`](https://www.npmjs.com/package/@stocksharp/grids), and reaches
 the outside world through exactly one object — a `TradingHost`.
 
+[Live demo](https://stocksharp.github.io/JS-TradingControls/demo/) ·
 [StockSharp website](https://stocksharp.com/) ·
 [GitHub repository](https://github.com/StockSharp/JS-TradingControls) ·
 [Issue tracker](https://github.com/StockSharp/JS-TradingControls/issues)
