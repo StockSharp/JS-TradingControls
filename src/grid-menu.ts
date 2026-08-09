@@ -28,6 +28,8 @@ export function makeGridMenu<TRow>(host: TradingHost): GridMenuOptions<TRow> {
             filterRule: host.t('FilterRule'),
             showFilters: host.t('ShowFilterRow'),
             hideFilters: host.t('HideFilterRow'),
+            showHeader: host.t('ShowHeaderRow'),
+            hideHeader: host.t('HideHeaderRow'),
             clearFilters: host.t('ClearFilters'),
             copyCell: host.t('CopyCell'),
             copyRow: host.t('CopyRow'),

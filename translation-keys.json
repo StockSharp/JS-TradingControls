@@ -1,6 +1,6 @@
 {
     "$comment": "Generated from src/ by tools/check-translation-keys.mjs -- do not edit by hand. Every string here is passed to TradingHost.t(); a host that answers none of them renders these literally to the user. See README.md (\"Text arrives through t()\").",
-    "count": 151,
+    "count": 153,
     "keys": [
         "Actions",
         "ActiveOrders",
@@ -66,6 +66,7 @@
         "GroupByColumn",
         "HideColumn",
         "HideFilterRow",
+        "HideHeaderRow",
         "ID",
         "Last",
         "LevelsCount",
@@ -119,6 +120,7 @@
         "SellHotkey",
         "ShowAllColumns",
         "ShowFilterRow",
+        "ShowHeaderRow",
         "Side",
         "SortAscending",
         "SortDescending",
