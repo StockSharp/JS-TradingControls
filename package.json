@@ -1,6 +1,6 @@
 {
   "name": "@stocksharp/trading-controls",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Browser trading controls for StockSharp: order blotters, positions, trade history, watchlist and trade feed, each built against one host port and rendering its own DOM.",
   "license": "SEE LICENSE IN LICENSE",
   "author": {
