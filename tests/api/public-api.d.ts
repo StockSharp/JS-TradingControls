@@ -11,8 +11,7 @@ export declare const OrderStates: {
     readonly Rejected: 6;
     readonly Cancelled: 7;
 };
-export interface ActiveOrdersDeps {
-    host: TradingHost;
+export interface ActiveOrdersActions {
     cancelOrder(orderId: number): void;
     dismissOrder(orderId: number): void;
     editOrderField(orderId: number, field: string): void;
@@ -20,12 +19,21 @@ export interface ActiveOrdersDeps {
     cancelAllOrders(): void;
     refreshOrders(): void;
 }
+export type ActiveOrdersDeps = ({
+    host: TradingHost;
+    readOnly?: false;
+} & ActiveOrdersActions) | {
+    host: TradingHost;
+    readOnly: true;
+};
 export declare class ActiveOrdersWidget {
     static TYPE: "activeOrders";
     rootEl: HTMLElement;
     el: HTMLElement | null;
     _host: TradingHost;
     _deps: ActiveOrdersDeps;
+    _readOnly: boolean;
+    _actions: ActiveOrdersActions | null;
     _closeBtn: HTMLElement | null;
     _cancelAllBtn: HTMLElement | null;
     _refreshBtn: HTMLElement | null;
@@ -33,7 +41,7 @@ export declare class ActiveOrdersWidget {
     _orders: OrderRow[];
     _grid: DataGrid<OrderRow> | null;
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: ActiveOrdersDeps): ActiveOrdersWidget;
-    static _buildRoot(host: TradingHost): HTMLElement;
+    static _buildRoot(host: TradingHost, readOnly?: boolean): HTMLElement;
     constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: ActiveOrdersDeps);
     dispose(): void;
     update(orders: OrderRow[]): void;
@@ -371,6 +379,7 @@ import type { TradeRow } from './trading-data.js';
 import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export interface TradeHistoryDeps {
     host: TradingHost;
+    readOnly?: boolean;
 }
 export declare class TradeHistoryWidget {
     static TYPE: "tradeHistory";
@@ -383,10 +392,11 @@ export declare class TradeHistoryWidget {
     _rows: TradeRow[];
     _grid: DataGrid<TradeRow> | null;
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: TradeHistoryDeps): TradeHistoryWidget;
-    static _buildRoot(host: TradingHost): HTMLElement;
+    static _buildRoot(host: TradingHost, readOnly?: boolean): HTMLElement;
     constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: TradeHistoryDeps);
     dispose(): void;
     refresh(): Promise<void>;
+    update(rows: TradeRow[]): void;
     _export(): void;
     _columns(): GridColumn<TradeRow>[];
 }

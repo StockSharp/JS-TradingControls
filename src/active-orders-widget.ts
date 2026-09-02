@@ -34,10 +34,9 @@ export const OrderStates = {
     Cancelled: 7,
 } as const;
 
-/// What the blotter needs beyond the host port. All required: a panel that
-/// cannot cancel, modify or reload its orders is not this panel.
-export interface ActiveOrdersDeps {
-    host: TradingHost;
+/// The gestures that reach a venue. All required together: a panel that can
+/// cancel one order but not all of them is a panel half-wired.
+export interface ActiveOrdersActions {
     cancelOrder(orderId: number): void;
     dismissOrder(orderId: number): void;
     editOrderField(orderId: number, field: string): void;
@@ -45,6 +44,18 @@ export interface ActiveOrdersDeps {
     cancelAllOrders(): void;
     refreshOrders(): void;
 }
+
+/// What the blotter needs beyond the host port, in one of two shapes.
+///
+/// A live blotter carries every action, because a panel that cannot cancel,
+/// modify or reload its orders is not that panel. A read-only one carries none:
+/// over a finished run - a backtest report, an archived session - there is no
+/// venue left to reach, and the gestures that would reach it are not rendered
+/// rather than rendered and wired to nothing. The union states that, so a live
+/// consumer still cannot omit an action by accident.
+export type ActiveOrdersDeps =
+    | ({ host: TradingHost; readOnly?: false } & ActiveOrdersActions)
+    | { host: TradingHost; readOnly: true };
 
 export class ActiveOrdersWidget {
     static TYPE = ControlTypes.ActiveOrders;
@@ -54,6 +65,8 @@ export class ActiveOrdersWidget {
     // `//` rather than `///` from here down — see the note in positions-widget.
     _host: TradingHost;
     _deps: ActiveOrdersDeps;
+    _readOnly: boolean;
+    _actions: ActiveOrdersActions | null;
     _closeBtn: HTMLElement | null;
     _cancelAllBtn: HTMLElement | null;
     _refreshBtn: HTMLElement | null;
@@ -66,7 +79,7 @@ export class ActiveOrdersWidget {
         // host, so a missing host has to fail here rather than render a panel
         // captioned with raw English keys.
         const host = assertHost(deps?.host, 'ActiveOrdersWidget');
-        const root = ActiveOrdersWidget._buildRoot(host);
+        const root = ActiveOrdersWidget._buildRoot(host, deps?.readOnly === true);
         root.id = makePanelId(ActiveOrdersWidget.TYPE);
         hostEl.appendChild(root);
         return new ActiveOrdersWidget(root, state || {}, deps);
@@ -83,7 +96,7 @@ export class ActiveOrdersWidget {
     // already give the identical button — and are wired to deps. Cancel-all
     // keeps a distinct accessible name from its tooltip, which is why it states
     // `aria-label` rather than taking the tooltip for both.
-    static _buildRoot(host: TradingHost): HTMLElement {
+    static _buildRoot(host: TradingHost, readOnly = false): HTMLElement {
         return makePanelRoot('active-orders-panel', host.t('ActiveOrders'), [
             makeElement('div', 'panel-header', {}, [
                 makeElement('span', '', {}, [host.t('OpenOrders')]),
@@ -97,9 +110,11 @@ export class ActiveOrdersWidget {
                     ]),
                 ]),
                 makeElement('div', 'panel-rail', { role: 'toolbar', 'aria-label': host.t('ActiveOrdersActions') }, [
-                    makeIconButton('bt-icon-btn bt-icon-cancel-all panel-cancel-all-btn', host.t('CancelAll'), 'bi-x-circle',
-                        { 'aria-label': host.t('CancelAllOrders') }),
-                    makeIconButton('bt-icon-btn panel-refresh-btn', host.t('Refresh'), 'bi-arrow-clockwise', {}),
+                    ...(readOnly ? [] : [
+                        makeIconButton('bt-icon-btn bt-icon-cancel-all panel-cancel-all-btn', host.t('CancelAll'), 'bi-x-circle',
+                            { 'aria-label': host.t('CancelAllOrders') }),
+                        makeIconButton('bt-icon-btn panel-refresh-btn', host.t('Refresh'), 'bi-arrow-clockwise', {}),
+                    ]),
                     makeIconButton('bt-icon-btn panel-export-btn', host.t('ExportToExcel'), 'bi-file-earmark-spreadsheet', {}),
                 ]),
             ]),
@@ -108,9 +123,16 @@ export class ActiveOrdersWidget {
 
     constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: ActiveOrdersDeps) {
         this._host = assertHost(deps?.host, 'ActiveOrdersWidget');
-        for (const name of ['cancelOrder', 'dismissOrder', 'editOrderField', 'replaceOrder', 'cancelAllOrders', 'refreshOrders'] as const) {
-            if (typeof deps?.[name] !== 'function')
-                throw new Error(`ActiveOrdersWidget: dep "${name}" is required`);
+        this._readOnly = deps?.readOnly === true;
+        if (this._readOnly) {
+            this._actions = null;
+        } else {
+            const actions = deps as ActiveOrdersActions;
+            for (const name of ['cancelOrder', 'dismissOrder', 'editOrderField', 'replaceOrder', 'cancelAllOrders', 'refreshOrders'] as const) {
+                if (typeof actions?.[name] !== 'function')
+                    throw new Error(`ActiveOrdersWidget: dep "${name}" is required`);
+            }
+            this._actions = actions;
         }
 
         this.rootEl = rootEl;
@@ -129,12 +151,12 @@ export class ActiveOrdersWidget {
 
         this._cancelAllBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            this._deps.cancelAllOrders();
+            this._actions?.cancelAllOrders();
         });
 
         this._refreshBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            this._deps.refreshOrders();
+            this._actions?.refreshOrders();
         });
 
         this._exportBtn?.addEventListener('click', (e) => {
@@ -246,7 +268,7 @@ export class ActiveOrdersWidget {
             if (newVal === currentValue) { this.update(this._orders); return; }
             const updated = { quantity: order.quantity, limitPrice: order.limitPrice, stopPrice: order.stopPrice };
             updated[field] = newVal;
-            this._deps.replaceOrder(orderId, updated.quantity!, updated.limitPrice!, updated.stopPrice!);
+            this._actions?.replaceOrder(orderId, updated.quantity!, updated.limitPrice!, updated.stopPrice!);
         };
         input.addEventListener('blur', commit);
         input.addEventListener('keydown', (e) => {
@@ -305,7 +327,7 @@ export class ActiveOrdersWidget {
                 exportable: true,
                 value: (o) => o.quantity,
                 render: (o) => formatQty(o.quantity),
-                cellClass: (o) => ActiveOrdersWidget._editableClass(o, 'quantity'),
+                cellClass: (o) => this._readOnly ? '' : ActiveOrdersWidget._editableClass(o, 'quantity'),
                 bindCell: (td, o) => this._bindInlineEdit(td, o, 'quantity'),
             },
             {
@@ -314,7 +336,7 @@ export class ActiveOrdersWidget {
                 exportable: true,
                 value: (o) => o.limitPrice,
                 render: (o) => o.limitPrice ? formatPrice(o.limitPrice) : label('MKT'),
-                cellClass: (o) => ActiveOrdersWidget._editableClass(o, 'limitPrice'),
+                cellClass: (o) => this._readOnly ? '' : ActiveOrdersWidget._editableClass(o, 'limitPrice'),
                 bindCell: (td, o) => this._bindInlineEdit(td, o, 'limitPrice'),
                 exportValue: (o) => o.limitPrice ?? label('MKT'),
             },
@@ -324,7 +346,7 @@ export class ActiveOrdersWidget {
                 exportable: true,
                 value: (o) => o.stopPrice,
                 render: (o) => o.stopPrice ? formatPrice(o.stopPrice) : '--',
-                cellClass: (o) => ActiveOrdersWidget._editableClass(o, 'stopPrice'),
+                cellClass: (o) => this._readOnly ? '' : ActiveOrdersWidget._editableClass(o, 'stopPrice'),
                 bindCell: (td, o) => this._bindInlineEdit(td, o, 'stopPrice'),
                 exportValue: (o) => o.stopPrice ?? '',
             },
@@ -336,14 +358,14 @@ export class ActiveOrdersWidget {
                 render: (o) => this._statusCell(o),
                 exportValue: (o) => presentation.statusText(o.status!),
             },
-            {
+            ...(this._readOnly ? [] : [{
                 key: 'actions',
                 header: label('Actions'),
                 headerHidden: true,
                 exportable: false,
                 cellClass: () => 'position-actions',
-                render: (o) => this._actionButton(o),
-            },
+                render: (o: OrderRow) => this._actionButton(o),
+            } as GridColumn<OrderRow>]),
         ];
     }
 
@@ -369,8 +391,9 @@ export class ActiveOrdersWidget {
     // Double-click to edit belongs to the whole cell rather than to a control
     // inside it, which is why it is wired here instead of returned by render().
     _bindInlineEdit(td: HTMLTableCellElement, order: OrderRow, field: 'quantity' | 'limitPrice' | 'stopPrice'): void {
-        if (!ActiveOrdersWidget._canEdit(order, field)) return;
-        td.addEventListener('dblclick', () => this._deps.editOrderField(order.id!, field));
+        if (this._actions === null || !ActiveOrdersWidget._canEdit(order, field)) return;
+        const edit = this._actions.editOrderField;
+        td.addEventListener('dblclick', () => edit(order.id!, field));
     }
 
     // Status text, plus a hoverable icon carrying the rejection reason. Some
@@ -412,8 +435,9 @@ export class ActiveOrdersWidget {
         icon.className = 'bi bi-x-circle';
         button.appendChild(icon);
         button.addEventListener('click', () => {
-            if (isTerminal) this._deps.dismissOrder(order.id!);
-            else this._deps.cancelOrder(order.id!);
+            if (this._actions === null) return;
+            if (isTerminal) this._actions.dismissOrder(order.id!);
+            else this._actions.cancelOrder(order.id!);
         });
         return button;
     }

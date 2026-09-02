@@ -124,3 +124,46 @@ describe('TradeHistoryWidget', () => {
         assert.deepStrictEqual(painted(root), [['No trade history']]);
     });
 });
+
+// The same blotter over a finished run. There is no account to load from and
+// nothing to reload, so the rows arrive from the consumer and the refresh
+// gesture is not rendered — see the note on ActiveOrdersWidget's read-only mode.
+describe('trade history, read-only', () => {
+    const ROWS = [
+        { id: 11, executedAt: '2024-03-01T18:20:00Z', instrumentSymbol: 'BTC/USD', side: 0, quantity: 2, price: 100, order: 501 },
+        { id: 12, executedAt: '2024-03-02T00:25:00Z', instrumentSymbol: 'ETH/USD', side: 1, quantity: 3, price: 2000, order: 502 },
+    ];
+
+    function readOnlyPanel() {
+        const parent = el('div');
+        const host = fakeHost();
+        let pulled = false;
+        host.trading.api.getExecutions = () => { pulled = true; return Promise.resolve([]); };
+        const widget = TradeHistoryWidget.create(asDom(parent), {}, { host, readOnly: true });
+        return { widget, root: parent.childNodes[0] as FakeElement, host, wasPulled: () => pulled };
+    }
+
+    it('renders the rows it is handed, without asking the host for any', () => {
+        const { widget, root, wasPulled } = readOnlyPanel();
+
+        widget.update(ROWS.map(r => ({ ...r })));
+
+        assert.deepStrictEqual(rowKeys(root), ['12', '11']);
+        assert.equal(wasPulled(), false, 'a pushed blotter reads no account');
+    });
+
+    it('renders no refresh gesture', () => {
+        const { root } = readOnlyPanel();
+
+        assert.equal(root.querySelector('.panel-refresh-btn'), null, 'nothing to reload');
+        assert.notEqual(root.querySelector('.panel-export-btn'), null, 'the table can still be exported');
+    });
+
+    it('says so when it is handed nothing', () => {
+        const { widget, root } = readOnlyPanel();
+
+        widget.update([]);
+
+        assert.deepStrictEqual(painted(root), [['No trade history']]);
+    });
+});

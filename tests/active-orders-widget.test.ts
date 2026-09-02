@@ -314,3 +314,53 @@ describe('ActiveOrdersWidget', () => {
         assert.ok(!labels.includes('Export to .xlsx'), 'the grid default leaked past the host');
     });
 });
+
+// A blotter over a finished run — a backtest report, an archived session — shows
+// orders nobody can act on any more. Read-only says so: the gestures that would
+// reach a venue are not rendered at all, rather than rendered and wired to
+// nothing, and a consumer with no venue to reach need not invent the deps that
+// would carry the attempt.
+describe('active orders, read-only', () => {
+    function readOnlyPanel(orders = ORDERS) {
+        const parent = el('div');
+        const host = fakeHost();
+        const widget = ActiveOrdersWidget.create(asDom(parent), {}, { host, readOnly: true });
+        widget.update(orders.map(o => ({ ...o })));
+        return { widget, root: parent.childNodes[0] as FakeElement, host };
+    }
+
+    it('needs none of the action deps', () => {
+        assert.doesNotThrow(() => readOnlyPanel());
+    });
+
+    it('renders no gesture that would reach a venue', () => {
+        const { root } = readOnlyPanel();
+
+        assert.equal(root.querySelector('.panel-cancel-all-btn'), null, 'nothing to cancel');
+        assert.equal(root.querySelector('.panel-refresh-btn'), null, 'nothing to refresh');
+        assert.notEqual(root.querySelector('.panel-export-btn'), null, 'the table can still be exported');
+    });
+
+    it('drops the per-row action column', () => {
+        const { root } = readOnlyPanel();
+
+        assert.deepStrictEqual(headerCaptions(root),
+            ['ID', 'Sym', 'Side', 'Type', 'Qty', 'Price', 'Stop', 'Status']);
+    });
+
+    it('marks no cell as editable', () => {
+        const { root } = readOnlyPanel();
+
+        const editable = allElements(root).filter(e => (e.className ?? '').includes('cell-editable'));
+        assert.deepStrictEqual(editable, [], 'a finished order has nothing to edit');
+    });
+
+    it('still shows what each order was', () => {
+        const { root } = readOnlyPanel();
+
+        // The three things a report is read for: side, type and final state.
+        const rows = painted(root);
+        assert.equal(rows.length, 3);
+        assert.ok(rows.some(cells => cells.includes('MKT')), 'a market order says so instead of showing no price');
+    });
+});

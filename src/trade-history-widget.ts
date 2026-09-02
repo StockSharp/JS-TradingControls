@@ -24,6 +24,10 @@ import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 /// portfolio and its lifecycle all arrive through it.
 export interface TradeHistoryDeps {
     host: TradingHost;
+    /// A blotter over a finished run - a backtest report, an archived session.
+    /// There is no account to load from and nothing to reload, so the rows come
+    /// in through `update` and the refresh gesture is not rendered.
+    readOnly?: boolean;
 }
 
 export class TradeHistoryWidget {
@@ -44,7 +48,7 @@ export class TradeHistoryWidget {
         // host, so a missing host has to fail here rather than render a panel
         // captioned with raw English keys.
         const host = assertHost(deps?.host, 'TradeHistoryWidget');
-        const root = TradeHistoryWidget._buildRoot(host);
+        const root = TradeHistoryWidget._buildRoot(host, deps?.readOnly === true);
         root.id = makePanelId(TradeHistoryWidget.TYPE);
         hostEl.appendChild(root);
         return new TradeHistoryWidget(root, state || {}, deps);
@@ -52,7 +56,7 @@ export class TradeHistoryWidget {
 
     // The panel's markup. The host stylesheet reads this structure, and a
     // docking host lifts `.panel-header`'s children into its tab strip.
-    static _buildRoot(host: TradingHost): HTMLElement {
+    static _buildRoot(host: TradingHost, readOnly = false): HTMLElement {
         const title = host.t('TradeHistory');
         return makePanelRoot('trade-history-panel', title, [
             makeElement('div', 'panel-header', {}, [
@@ -67,7 +71,7 @@ export class TradeHistoryWidget {
                     ]),
                 ]),
                 makeElement('div', 'panel-rail', { role: 'toolbar', 'aria-label': host.t('TradeHistoryActions') }, [
-                    makeIconButton('bt-icon-btn panel-refresh-btn', host.t('Refresh'), 'bi-arrow-clockwise', {}),
+                    ...(readOnly ? [] : [makeIconButton('bt-icon-btn panel-refresh-btn', host.t('Refresh'), 'bi-arrow-clockwise', {})]),
                     makeIconButton('bt-icon-btn panel-export-btn', host.t('ExportToExcel'), 'bi-file-earmark-spreadsheet', {}),
                 ]),
             ]),
@@ -155,6 +159,15 @@ export class TradeHistoryWidget {
             // what makes it assertable.
             this._host.log(`TradeHistoryWidget: failed to load trade history: ${err}`);
         }
+    }
+
+    /// Show these rows. The push path, for a consumer that already holds the
+    /// trades - a finished run's report - rather than an account to load them
+    /// from. `refresh` is the pull path and the two do not mix: whichever ran
+    /// last is what the grid shows.
+    update(rows: TradeRow[]): void {
+        this._rows = rows || [];
+        this._grid?.setRows(this._rows);
     }
 
     // Export the table to .xlsx in the currently rendered (sorted) order.
