@@ -167,3 +167,24 @@ describe('trade history, read-only', () => {
         assert.deepStrictEqual(painted(root), [['No trade history']]);
     });
 });
+
+describe('trade history, time wording', () => {
+// What a time should read as is not a property of the trade. A tape wants the time of day in
+// the reader's own zone; a blotter over a finished run wants the date too, and in the zone the
+// run was recorded in. So the host words it, the way it words a side or a status.
+it('words its time through the host, not on its own', async () => {
+    const parent = el('div');
+    const host = fakeHost();
+    host.presentation.timeText = (value) => `worded:${new Date(value).toISOString()}`;
+    host.trading.portfolioId = () => 3;
+    host.trading.api.getExecutions = () => Promise.resolve([
+        { id: 11, executedAt: '2024-03-01T18:20:00Z', instrumentSymbol: 'BTC/USD', side: 0, quantity: 2, price: 100, order: 501 },
+    ]);
+    const widget = TradeHistoryWidget.create(asDom(parent), {}, { host });
+    await widget.refresh();
+
+    const root = parent.childNodes[0] as FakeElement;
+    const cells = painted(root)[0];
+    assert.ok(cells.includes('worded:2024-03-01T18:20:00.000Z'), `host wording missing from: ${cells.join(' | ')}`);
+});
+});

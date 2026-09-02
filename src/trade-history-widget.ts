@@ -12,7 +12,7 @@
 // The table is `DataGrid` from `@stocksharp/grids`: the columns below are this
 // blotter's single declaration and the <thead> is left empty for the grid to
 // fill.
-import { formatPrice, formatQty, formatTime } from './formatters.js';
+import { formatPrice, formatQty } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
 import { makeGridMenu } from './grid-menu.js';
@@ -197,8 +197,8 @@ export class TradeHistoryWidget {
                 header: label('Time'),
                 exportable: true,
                 value: (t) => t.executedAt || t.time,
-                render: (t) => formatTime(t.executedAt || t.time),
-                exportValue: (t) => formatTime(t.executedAt || t.time),
+                render: (t) => presentation.timeText(t.executedAt || t.time!),
+                exportValue: (t) => presentation.timeText(t.executedAt || t.time!),
             },
             {
                 key: 'symbol',

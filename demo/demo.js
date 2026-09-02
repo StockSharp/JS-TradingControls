@@ -343,6 +343,9 @@
             return 'LMT';
         },
         statusText: (status) => LANG.status[STATUS_KEYS[status]] || String(status),
+        // A live demo is a tape, so it reads the time of day in the reader's own zone.
+        timeText: (value) => new Date(value).toLocaleTimeString('en-US',
+            { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         sideClass: (side) => (isBuy(side) ? SIDE_BUY_CLASS : SIDE_SELL_CLASS),
         // The empty string is a legitimate answer for "no colour" — a flat P&L is
         // neither a win nor a loss.

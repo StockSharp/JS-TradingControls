@@ -627,6 +627,7 @@ export interface TradingPresentation {
     isBuy(side: OrderSide): boolean;
     typeText(type: OrderType, limitPrice: number, stopPrice: number): string;
     statusText(status: OrderStatus): string;
+    timeText(value: string | number | Date): string;
     sideClass(side: OrderSide): string;
     pnlClass(pnl: number): string;
     canvasPalette(): CanvasPalette;

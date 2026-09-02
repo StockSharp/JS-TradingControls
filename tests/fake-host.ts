@@ -10,6 +10,7 @@
 // spellings it accepts (`0`/`'Buy'`/`'BUY'`) are exactly the ones a control
 // hands it, so a control that stopped passing the raw value through would show
 // up here.
+import { formatTime } from '../src/index.js';
 import type {
     HostStore, OrderSide, OrderStatus, OrderType,
     QuoteStats, TradingHost, TradingPresentation,
@@ -77,6 +78,11 @@ export const testPresentation: TradingPresentation = {
     // Deliberately unlike the two token colours a real host would answer with:
     // a control that painted a literal of its own would still look plausible on
     // screen, and would be caught here.
+    // The tape's own answer, which is what a terminal host says.
+    timeText(value: string | number | Date) {
+        return formatTime(value);
+    },
+
     canvasPalette() {
         return { up: 'test-up', down: 'test-down', grid: 'test-grid', font: 'test-font' };
     },

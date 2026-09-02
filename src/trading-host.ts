@@ -86,6 +86,13 @@ export interface TradingPresentation {
     typeText(type: OrderType, limitPrice: number, stopPrice: number): string;
     /// Localized order status.
     statusText(status: OrderStatus): string;
+    /// A moment, worded. The host owns this for the same reason it owns a side or a
+    /// status: what a time should read as is not a property of the data. A live tape wants
+    /// the time of day in the reader's own zone; a blotter over a finished run wants the
+    /// date too, and in the zone the run was recorded in, or every row reads as the same
+    /// unplaceable day. `formatTime` is this package's tape answer, exported so a host that
+    /// wants exactly that need not restate it.
+    timeText(value: string | number | Date): string;
     /// CSS class colouring a cell by side. The shipped stylesheet styles
     /// `side-buy` and `side-sell`; a host on its own palette may answer with
     /// its own names and style those instead.
@@ -271,6 +278,7 @@ export function assertHost(host: TradingHost, controlName: string): TradingHost 
     _required(host.presentation.isBuy, 'host.presentation.isBuy', 'function', controlName);
     _required(host.presentation.typeText, 'host.presentation.typeText', 'function', controlName);
     _required(host.presentation.statusText, 'host.presentation.statusText', 'function', controlName);
+    _required(host.presentation.timeText, 'host.presentation.timeText', 'function', controlName);
     _required(host.presentation.sideClass, 'host.presentation.sideClass', 'function', controlName);
     _required(host.presentation.pnlClass, 'host.presentation.pnlClass', 'function', controlName);
     _required(host.presentation.canvasPalette, 'host.presentation.canvasPalette', 'function', controlName);
