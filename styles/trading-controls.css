@@ -1378,3 +1378,359 @@
 }
 
 .oe-estimate.oe-estimate-error { color: var(--t-red); }
+
+/* Statistics: a figure column, right-aligned and lined up on the digits so a column of
+   numbers can be compared down rather than read across. */
+.statistic-value {
+    text-align: right;
+    font-family: var(--t-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Log monitor -------------------------------------------------------- */
+
+/* Two panes side by side: the sources, which are as wide as their names, and the messages,
+   which take everything left. Both scroll in their own right so a long log does not push the
+   tree off the panel. */
+.log-monitor-body {
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.log-sources {
+    flex: 0 0 14rem;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--t-border);
+    background: var(--t-panel);
+}
+
+/* A source reads as a row, not as a button: the whole width is the target, the caption sits
+   where its depth puts it, and only the selected one is filled. */
+.log-source {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    color: var(--t-text);
+    font: inherit;
+    text-align: left;
+    padding: .25rem .5rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-source:hover { background: var(--t-hover); }
+
+.log-source.is-selected {
+    background: var(--t-hover);
+    color: var(--t-text-bright);
+    box-shadow: inset 2px 0 0 var(--t-accent);
+}
+
+.log-messages {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.log-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .3rem .5rem;
+    border-bottom: 1px solid var(--t-border);
+    background: var(--t-header);
+}
+
+/* One letter per level, lit when that level is shown. Off is dimmed rather than hidden, so the
+   row of them reads as a set of switches and not as a shrinking list. */
+.log-level-toggle {
+    border: 1px solid var(--t-border);
+    background: var(--t-panel);
+    color: var(--t-text-dim);
+    font-family: var(--t-mono);
+    font-size: .72rem;
+    line-height: 1;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: var(--t-radius);
+    cursor: pointer;
+    opacity: .45;
+    transition: opacity var(--t-transition), color var(--t-transition);
+}
+
+.log-level-toggle.is-on { opacity: 1; color: var(--t-text); }
+.log-level-toggle.log-level-error.is-on { color: var(--t-red); }
+.log-level-toggle.log-level-warning.is-on { color: var(--t-orange); }
+
+.log-filter {
+    flex: 1 1 auto;
+    min-width: 4rem;
+    max-width: 14rem;
+    margin-left: .3rem;
+}
+
+/* The scroll box, not the table, is the flex child. A table given `flex: 1` stretches its rows
+   to fill the space instead of leaving the space empty, which drew a one-line log as one line a
+   panel tall; and with nothing scrollable around it, a long log was simply unreachable past the
+   height of the panel. */
+.log-table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* The header stays put while the messages scroll under it - a log is read by scrolling back,
+   and a column heading that scrolls away takes the meaning of the columns with it. */
+.log-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* The level column is one letter wide and coloured by what it says; the message takes the rest
+   and wraps rather than being cut, because the end of an error is usually the part that names
+   the cause. */
+.log-level-col { width: 2rem; }
+
+.log-level-cell {
+    text-align: center;
+    font-family: var(--t-mono);
+    color: var(--t-text-dim);
+}
+
+.log-level-cell.log-level-error { color: var(--t-red); }
+.log-level-cell.log-level-warning { color: var(--t-orange); }
+
+.log-message-cell {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-row-error td { color: var(--t-red); }
+
+/* ---- Strategies dashboard ----------------------------------------------- */
+
+/* The state reads twice: a dot that carries the colour across a long list, and the word beside
+   it, because a colour cannot tell Starting from Started. */
+.strategy-state { white-space: nowrap; }
+
+.strategy-dot {
+    margin-right: .35rem;
+    color: var(--t-text-dim);
+}
+
+.strategy-state-started .strategy-dot { color: var(--t-green); }
+.strategy-state-starting .strategy-dot,
+.strategy-state-stopping .strategy-dot { color: var(--t-orange); }
+
+/* A least width in characters, so the column does not jump as a run passes through Stopping on
+   its way to Stopped, or Forming on its way to Running. Sized to the longest of those words; a
+   floor rather than a cap, so a language that words them longer still gets its room. */
+.strategy-state-text {
+    color: var(--t-text-dim);
+    display: inline-block;
+    min-width: 8ch;
+}
+
+.strategy-actions,
+.strategy-position {
+    white-space: nowrap;
+}
+
+/* A least width in digits, so the flatten button beside the figure does not move when the
+   position gains a minus sign or loses a digit. It is a floor, not a cap: a genuinely wider
+   number still gets the room it needs. */
+.strategy-position-value {
+    display: inline-block;
+    min-width: 5ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.strategy-actions .bt-icon-btn { margin-right: .1rem; }
+
+/* Flattening sits with the number it acts on, quiet until the position is worth closing. */
+.strategy-flatten-btn { margin-left: .35rem; }
+
+.strategy-online { text-align: center; color: var(--t-text-dim); }
+.strategy-online.is-on { color: var(--t-green); }
+
+.strategy-mode { min-width: 7rem; }
+
+/* The curve fills the cell it was measured for; the cell claims that width so a column of them
+   lines up whether or not a given strategy has traded yet. */
+.strategy-spark { width: 140px; padding-top: 2px; padding-bottom: 2px; }
+.strategy-spark-canvas { display: block; }
+
+/* An error is the one cell allowed to be long: it is read when something is wrong and truncating
+   it hides the part that names the cause. */
+.strategy-error {
+    color: var(--t-red);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.strategy-failed .strategy-dot { color: var(--t-red); }
+
+/* ---- Option desk -------------------------------------------------------- */
+
+/* A bar behind a figure rather than beside it: the number stays readable and the cell keeps its
+   width, so a column of them can be compared down the strip. */
+.option-bar-cell {
+    position: relative;
+    display: block;
+    text-align: right;
+}
+
+.option-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 1px;
+    opacity: .35;
+}
+
+.option-bar-text { position: relative; }
+
+/* Calls and puts are told apart by which side the bar is tinted; volatility is neither side's,
+   so it takes the neutral one. */
+.option-bar-call { background: var(--t-green); }
+.option-bar-put { background: var(--t-red); }
+.option-bar-iv { background: var(--t-text-dim); }
+
+.option-bid { color: var(--t-green); }
+.option-ask { color: var(--t-red); }
+
+/* The strike is the spine of the chain: it is what the eye runs down, so it is the one column
+   given weight, and the value beside it sits in the same block. */
+.option-strike {
+    text-align: center;
+    font-weight: 600;
+    color: var(--t-text-bright);
+    background: var(--t-header);
+}
+
+.option-intrinsic {
+    text-align: center;
+    color: var(--t-text-dim);
+    background: var(--t-header);
+}
+
+/* Which half is in the money, shaded rather than outlined: the boundary between the two is the
+   first thing a reader looks for and it moves with the underlying. */
+.option-itm-call td:first-child,
+.option-itm-put td:last-child { box-shadow: none; }
+
+.option-itm-call .option-strike { border-left: 2px solid var(--t-green); }
+.option-itm-put .option-strike { border-right: 2px solid var(--t-red); }
+
+/* ---- Fields the controls build themselves -------------------------------- */
+
+/* A control that ships its own panel ships its own fields. These carry Bootstrap's class names
+   because a host that has Bootstrap should keep its look, but a host that does not was getting
+   the browser's default control: a white box with a native arrow, sitting on a dark panel. The
+   rules below are what the package paints when nothing else has, and any real Bootstrap or host
+   stylesheet loaded after this one still wins. */
+.terminal-table input.form-control,
+.terminal-table select.form-control,
+.panel-body input.form-control,
+.panel-body select.form-control {
+    background: var(--t-bg);
+    color: var(--t-text);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 2px 6px;
+    line-height: 1.4;
+}
+
+.terminal-table select.form-control,
+.panel-body select.form-control {
+    /* The native arrow is painted by the platform and cannot be themed, so it is replaced. */
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--t-text-dim) 50%),
+                      linear-gradient(135deg, var(--t-text-dim) 50%, transparent 50%);
+    background-position: right 11px center, right 6px center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 20px;
+}
+
+.panel-body input.form-control::placeholder { color: var(--t-text-dim); }
+
+.terminal-table input.form-control:focus,
+.terminal-table select.form-control:focus,
+.panel-body input.form-control:focus,
+.panel-body select.form-control:focus {
+    outline: none;
+    border-color: var(--t-accent);
+    box-shadow: 0 0 0 2px var(--t-accent-glow-soft);
+}
+
+/* The tables carry their own text colour rather than inheriting the page's. A panel is dropped
+   into whatever document a host has, and one that never set a colour was rendering near-black
+   rows on a near-black panel. */
+.terminal-table { color: var(--t-text); }
+
+/* The scrollbars inside a panel, painted from the same tokens as everything else in it.
+   A control makes its own scroll containers - the body, the table, the log's source tree, the
+   watchlist pane - so a panel that brings its own background brings the bar over it too;
+   without this a themed dark panel scrolls with the operating system's light grey.
+
+   Scoped to `.terminal-panel` on purpose: a host's page keeps whatever scrollbars it has, and
+   only the boxes this package created are restyled.
+
+   Both spellings, because they are not interchangeable. `scrollbar-width` / `scrollbar-color`
+   are the standard ones and are all Firefox reads; the `::-webkit-scrollbar` pseudo-elements
+   are what WebKit and Chromium read, and they win there when both are present. */
+.terminal-panel,
+.terminal-panel * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--t-border) transparent;
+}
+
+.terminal-panel ::-webkit-scrollbar,
+.terminal-panel::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+/* Transparent rather than a colour of its own: a scroll container sits on the panel, the header
+   band or a grouped row, and a track painted one flat colour shows a seam against the other two. */
+.terminal-panel ::-webkit-scrollbar-track,
+.terminal-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.terminal-panel ::-webkit-scrollbar-thumb,
+.terminal-panel::-webkit-scrollbar-thumb {
+    background: var(--t-border);
+    border-radius: var(--t-radius);
+    /* An inset border keeps the thumb off the edge of the track, so it reads as a handle in a
+       gutter rather than as a filled column. The border is the padding: it has to be
+       transparent and clipped to the content box, or it paints as a second colour. */
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.terminal-panel ::-webkit-scrollbar-thumb:hover,
+.terminal-panel::-webkit-scrollbar-thumb:hover {
+    background: var(--t-text-dim);
+    background-clip: content-box;
+}
+
+/* Where two bars meet. Left unpainted it is a white square in the corner of a dark panel. */
+.terminal-panel ::-webkit-scrollbar-corner,
+.terminal-panel::-webkit-scrollbar-corner {
+    background: transparent;
+}

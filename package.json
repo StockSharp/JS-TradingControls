@@ -1,6 +1,6 @@
 {
   "name": "@stocksharp/trading-controls",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Browser trading controls for StockSharp: order blotters, positions, trade history, watchlist and trade feed, each built against one host port and rendering its own DOM.",
   "license": "SEE LICENSE IN LICENSE",
   "author": {
@@ -85,6 +85,26 @@
       "types": "./dist/types/tradefeed-widget.d.ts",
       "import": "./dist/esm/tradefeed-widget.js"
     },
+    "./statistics-widget": {
+      "types": "./dist/types/statistics-widget.d.ts",
+      "import": "./dist/esm/statistics-widget.js"
+    },
+    "./strategies-widget": {
+      "types": "./dist/types/strategies-widget.d.ts",
+      "import": "./dist/esm/strategies-widget.js"
+    },
+    "./log-monitor-widget": {
+      "types": "./dist/types/log-monitor-widget.d.ts",
+      "import": "./dist/esm/log-monitor-widget.js"
+    },
+    "./option-desk-widget": {
+      "types": "./dist/types/option-desk-widget.d.ts",
+      "import": "./dist/esm/option-desk-widget.js"
+    },
+    "./trading-data": {
+      "types": "./dist/types/trading-data.d.ts",
+      "import": "./dist/esm/trading-data.js"
+    },
     "./source": "./src/index.ts",
     "./source/trading-host": "./src/trading-host.ts",
     "./source/control-types": "./src/control-types.ts",
@@ -97,6 +117,11 @@
     "./source/order-entry-widget": "./src/order-entry-widget.ts",
     "./source/orderbook-widget": "./src/orderbook-widget.ts",
     "./source/tradefeed-widget": "./src/tradefeed-widget.ts",
+    "./source/statistics-widget": "./src/statistics-widget.ts",
+    "./source/strategies-widget": "./src/strategies-widget.ts",
+    "./source/log-monitor-widget": "./src/log-monitor-widget.ts",
+    "./source/option-desk-widget": "./src/option-desk-widget.ts",
+    "./source/trading-data": "./src/trading-data.ts",
     "./styles.css": "./styles/trading-controls.css",
     "./theme.css": "./styles/theme.css",
     "./translation-keys.json": "./translation-keys.json",
@@ -136,7 +161,7 @@
     "release:major": "npm version major -m \"chore: release v%s\""
   },
   "dependencies": {
-    "@stocksharp/grids": "^1.1.1"
+    "@stocksharp/grids": "^1.2.1"
   },
   "devDependencies": {
     "@stocksharp/chart": "^0.2.3",

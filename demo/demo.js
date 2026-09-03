@@ -40,6 +40,14 @@
         OrderEntrySides,
         TradeFeedWidget,
         OrderBookWidget,
+        StatisticsWidget,
+        StrategiesWidget,
+        StrategyStates,
+        LogMonitorWidget,
+        LogLevels,
+        OptionDeskWidget,
+        OptionTypes,
+        premium,
         MarketDataLevels,
         PRESENTATION_CLASSES,
     } = window.SSTradingControls;
@@ -129,11 +137,38 @@
         { id: 5511, executedAt: minutesAgo(133), instrumentSymbol: 'CLZ5@NYMEX', side: Sides.Buy, quantity: 5, price: 72.41, order: 90099 },
     ];
 
+    // Three runs over three instruments from the universe above, one of each kind
+    // of row: a winner holding a lot, a loser that is flat, and one that never
+    // started and says why. `lot` is the size a run works in - it goes to one lot
+    // and back to flat, never averaging in, which keeps its own book to two lines.
+    const PRISTINE_STRATEGIES = [
+        {
+            id: 'sma', name: 'SMA crossover', symbol: 'BTC@IMEX', state: StrategyStates.Started,
+            mode: 'Full', lot: 0.05, position: 0.05, avgPrice: 68180.0, realized: 640.0,
+            orders: 35, trades: 34, anchor: 0, error: null,
+        },
+        {
+            id: 'rsi', name: 'RSI reversal', symbol: 'NVDA@NASDAQ', state: StrategyStates.Started,
+            mode: 'CancelOrders', lot: 50, position: 0, avgPrice: 0, realized: -212.5,
+            orders: 61, trades: 60, anchor: 0, error: null,
+        },
+        {
+            id: 'grid', name: 'Grid maker', symbol: 'ESZ5@CME', state: StrategyStates.Stopped,
+            mode: 'Disabled', lot: 1, position: 0, avgPrice: 0, realized: 0,
+            orders: 0, trades: 0, anchor: 0, error: 'no market data for ESZ5@CME',
+        },
+    ];
+
     const state = {
         positions: [],
         balance: null,
         orders: [],
         trades: [],
+        strategies: [],
+        // The run's equity high-water mark. A drawdown is a property of the path
+        // equity took: once it has fallen back, nothing in the snapshot says how
+        // high it stood, so the peak is carried as the run goes.
+        equity: { peak: 0, peakAt: null, drawdown: 0 },
         nextTradeId: 5600,
         // Orders this session sends itself — closing or reversing a position is
         // an order too, and its fill has to name one.
@@ -148,6 +183,15 @@
         state.balance = clone(PRISTINE_BALANCE);
         state.orders = clone(PRISTINE_ORDERS);
         state.trades = clone(PRISTINE_TRADES);
+        // A run that has traded sixty times did not start ten seconds ago, so its
+        // curve is seeded back to where it began; one that never ran has no curve
+        // and the dashboard draws no sparkline for it.
+        state.strategies = clone(PRISTINE_STRATEGIES).map(strategy => {
+            strategy.pnl = strategy.trades > 0 ? seedStrategyCurve(strategy) : [];
+            strategy.samples = strategy.pnl.length;
+            return strategy;
+        });
+        state.equity = { peak: 0, peakAt: null, drawdown: 0 };
         state.nextTradeId = 5600;
         state.nextOrderId = 90200;
     }
@@ -164,7 +208,38 @@
 
     const tickerEl = document.getElementById('ticker');
 
-    function logLine(kind, text) {
+    // How many lines the page keeps, and how far back a monitor that opens late is
+    // seeded from. One number for both, so a panel that was closed for a while comes
+    // back showing what it would have shown had it been on screen throughout.
+    const LOG_HISTORY = 500;
+
+    // What each of the page's line kinds reads as in a log monitor. `dim` is the
+    // book-keeping the page already prints in grey, `data` is a call that would cross
+    // a network, and a kind with no row here reads as an ordinary message.
+    const LOG_LEVELS = {
+        act: LogLevels.Info,
+        up: LogLevels.Info,
+        down: LogLevels.Info,
+        data: LogLevels.Debug,
+        dim: LogLevels.Verbose,
+        warn: LogLevels.Warning,
+    };
+
+    // The root of the source tree: the demo host itself, which wrote every line no
+    // control asked for - the API client, the market-data feed, the stores, the dock.
+    const HOST_SOURCE = 'host';
+
+    // Every line written so far, capped, plus the tail the monitor has not been given
+    // yet. The history seeds a panel that opens late; the queue feeds the one on screen.
+    const logHistory = [];
+    const pendingLog = [];
+    let nextLogId = 1;
+    let draining = false;
+
+    // Every line goes to two places: the page's own log element, and the log monitor,
+    // which is the package's own control over the same stream. `sourceId` names who the
+    // line is about - the host itself, or the control kind whose port call this is.
+    function logLine(kind, text, sourceId) {
         const line = document.createElement('div');
         line.className = 'log-line ' + kind;
         const stamp = document.createElement('span');
@@ -175,6 +250,38 @@
         logEl.appendChild(line);
         while (logEl.childElementCount > 300) logEl.removeChild(logEl.firstElementChild);
         logEl.scrollTop = logEl.scrollHeight;
+
+        recordLog({
+            id: nextLogId++,
+            time: new Date().toISOString(),
+            level: LOG_LEVELS[kind] || LogLevels.Info,
+            sourceId,
+            message: text,
+        });
+    }
+
+    // Keep the line, and hand it on if a monitor is up. Both stores are capped the way
+    // the widget caps itself, so a session spent with the panel closed cannot grow them.
+    function recordLog(row) {
+        logHistory.push(row);
+        pendingLog.push(row);
+        if (logHistory.length > LOG_HISTORY) logHistory.splice(0, logHistory.length - LOG_HISTORY);
+        if (pendingLog.length > LOG_HISTORY) pendingLog.splice(0, pendingLog.length - LOG_HISTORY);
+        drainLog();
+    }
+
+    // Give the monitor what is waiting, oldest first. Appending renders, and the monitor
+    // sits over a real host - so a line written while it renders only queues, and this
+    // loop takes it on the next turn. A line is delayed at worst, never nested.
+    function drainLog() {
+        const monitor = live.get(ControlTypes.LogMonitor);
+        if (!monitor || draining) return;
+        draining = true;
+        try {
+            while (pendingLog.length > 0) monitor.append(pendingLog.splice(0, pendingLog.length));
+        } finally {
+            draining = false;
+        }
     }
 
     // What the primary watchlist reports through `TickerSink.publish` — the symbols
@@ -220,7 +327,7 @@
     // itself. Dismissing it calls nothing back, which is the contract — the
     // control learns what was chosen, and learns nothing when nothing was.
     function pickInstrument(kind, onPicked) {
-        logLine('act', `${kind}: trading.pickInstrument() — the host opened its picker`);
+        logLine('act', `${kind}: trading.pickInstrument() — the host opened its picker`, kind);
 
         const overlay = document.createElement('div');
         overlay.className = 'picker';
@@ -240,7 +347,7 @@
             option.textContent = `${instrument.symbol} — ${instrument.name}`;
             option.addEventListener('click', () => {
                 close();
-                logLine('act', `${kind}: picked ${instrument.symbol}`);
+                logLine('act', `${kind}: picked ${instrument.symbol}`, kind);
                 onPicked(instrument.symbol);
             });
             sheet.appendChild(option);
@@ -252,7 +359,7 @@
         dismiss.textContent = LANG.page.pickerDismiss;
         dismiss.addEventListener('click', () => {
             close();
-            logLine('dim', `${kind}: the picker was dismissed — the control was told nothing`);
+            logLine('dim', `${kind}: the picker was dismissed — the control was told nothing`, kind);
         });
         sheet.appendChild(dismiss);
 
@@ -274,7 +381,7 @@
     function translate(key, ...args) {
         let text = LANG.controls[key];
         if (text === undefined) {
-            logLine('warn', `t("${key}") has no ${LANG.code} translation — falling back to the key`);
+            logLine('warn', `t("${key}") has no ${LANG.code} translation — falling back to the key`, HOST_SOURCE);
             text = String(key);
         }
         return text.replace(/\{(\d+)\}/g, (match, index) => {
@@ -365,7 +472,7 @@
             set(key, value) {
                 if (value === null) delete bag[key];
                 else bag[key] = String(value);
-                logLine('dim', `${name}.set("${key}")`);
+                logLine('dim', `${name}.set("${key}")`, HOST_SOURCE);
             },
         };
     }
@@ -391,14 +498,14 @@
     // saw an instant answer would hide its own loading behaviour.
     const api = {
         getExecutions(portfolioId, symbol, limit) {
-            logLine('data', `api.getExecutions(portfolio ${portfolioId}, ${symbol === null ? 'every instrument' : symbol}, limit ${limit})`);
+            logLine('data', `api.getExecutions(portfolio ${portfolioId}, ${symbol === null ? 'every instrument' : symbol}, limit ${limit})`, HOST_SOURCE);
             const rows = state.trades
                 .filter(t => symbol === null || t.instrumentSymbol === symbol)
                 .slice(0, limit);
             return new Promise(resolve => setTimeout(() => resolve(clone(rows)), 90));
         },
         searchInstruments(query) {
-            logLine('data', `api.searchInstruments("${query}")`);
+            logLine('data', `api.searchInstruments("${query}")`, HOST_SOURCE);
             const q = String(query || '').trim().toLowerCase();
             const rows = UNIVERSE
                 .filter(u => !q || u.symbol.toLowerCase().includes(q) || u.name.toLowerCase().includes(q))
@@ -415,7 +522,7 @@
         addSymbol(symbol, level) {
             const count = (subscriptions.get(symbol) || 0) + 1;
             subscriptions.set(symbol, count);
-            logLine('dim', `marketData.addSymbol("${symbol}", "${level}") — refcount ${count}`);
+            logLine('dim', `marketData.addSymbol("${symbol}", "${level}") — refcount ${count}`, HOST_SOURCE);
             // A subscription that asked for the depth is answered with a
             // snapshot, which is what makes the diffs after it mean anything.
             // On a timer because a real one crosses a network, and because a
@@ -427,11 +534,11 @@
             const count = Math.max(0, (subscriptions.get(symbol) || 0) - 1);
             if (count === 0) subscriptions.delete(symbol);
             else subscriptions.set(symbol, count);
-            logLine('dim', `marketData.removeSymbol("${symbol}") — refcount ${count}`);
+            logLine('dim', `marketData.removeSymbol("${symbol}") — refcount ${count}`, HOST_SOURCE);
             return Promise.resolve(true);
         },
         resubscribe(symbol, level) {
-            logLine('dim', `marketData.resubscribe("${symbol}", "${level}") — resending the book from scratch`);
+            logLine('dim', `marketData.resubscribe("${symbol}", "${level}") — resending the book from scratch`, HOST_SOURCE);
             // What a resubscribe is FOR: the ladder lost its place in the
             // sequence and cannot trust another diff, so the only useful answer
             // is a fresh snapshot.
@@ -473,31 +580,31 @@
             },
             ticker: {
                 publish(symbols, stats) {
-                    logLine('dim', `ticker.publish(${symbols.length} visible symbols)`);
+                    logLine('dim', `ticker.publish(${symbols.length} visible symbols)`, kind);
                     renderTicker(symbols, stats);
                 },
             },
             allow(action) {
-                logLine('dim', `allow("${action}") — granted`);
+                logLine('dim', `allow("${action}") — granted`, kind);
                 return true;
             },
-            log: (message) => logLine('warn', `log: ${message}`),
+            log: (message) => logLine('warn', `log: ${message}`, kind),
             // The panel's × (in the dockview tab) and this call end in the same
             // place: the panel leaves the dock and the renderer disposes the
             // widget.
             close: () => closeDockPanel(kind),
             // Uncalled by the four blotters; the port requires them anyway
             // because the terminal's other controls call them.
-            spawn: (panelState) => logLine('act', `${kind}: spawn(${JSON.stringify(panelState)}) — this demo hosts one panel per kind`),
-            persistState: (patch) => logLine('dim', `${kind}: persistState(${JSON.stringify(patch)})`),
-            saveLayout: () => logLine('dim', `${kind}: saveLayout()`),
+            spawn: (panelState) => logLine('act', `${kind}: spawn(${JSON.stringify(panelState)}) — this demo hosts one panel per kind`, kind),
+            persistState: (patch) => logLine('dim', `${kind}: persistState(${JSON.stringify(patch)})`, kind),
+            saveLayout: () => logLine('dim', `${kind}: saveLayout()`, kind),
             register(control) {
                 peers.add(control);
-                logLine('dim', `register(${kind}) — ${peers.size} live`);
+                logLine('dim', `register(${kind}) — ${peers.size} live`, kind);
             },
             unregister(control) {
                 peers.delete(control);
-                logLine('dim', `unregister(${kind}) — ${peers.size} live`);
+                logLine('dim', `unregister(${kind}) — ${peers.size} live`, kind);
             },
             broadcast(apply) {
                 for (const control of Array.from(peers)) apply(control);
@@ -571,6 +678,10 @@
         } else if (positions) {
             positions.applyDelta(clone(position));
         }
+
+        // The fill moved the tape and the portfolio, so every figure derived from them
+        // moved with it.
+        pushStatistics();
     }
 
     function updateOrder(orderId, patch) {
@@ -578,6 +689,7 @@
         if (order) Object.assign(order, patch);
         const orders = live.get(ControlTypes.ActiveOrders);
         if (orders) orders.applyDelta({ id: orderId, ...patch });
+        pushStatistics();
         return order;
     }
 
@@ -588,7 +700,7 @@
         addExecution(order.instrument, order.side, quantity, price, order.id);
         applyFill(order.instrument, buy, quantity, price);
         logLine(buy ? 'up' : 'down',
-            `fill: #${order.localId} ${presentation.sideText(order.side)} ${quantity} ${order.instrument} @ ${price} — order filled, execution added, position updated`);
+            `fill: #${order.localId} ${presentation.sideText(order.side)} ${quantity} ${order.instrument} @ ${price} — order filled, execution added, position updated`, HOST_SOURCE);
     }
 
     // A resting order the market reached. Limit fills at its own price; a
@@ -710,7 +822,7 @@
         book.frames += 1;
         book.sequence += book.frames % FRAMES_PER_GAP === 0 ? 2 : 1;
         if (book.frames % FRAMES_PER_GAP === 0)
-            logLine('warn', `feed: dropping a frame for ${symbol} on purpose — the next one skips a sequence number`);
+            logLine('warn', `feed: dropping a frame for ${symbol} on purpose — the next one skips a sequence number`, HOST_SOURCE);
 
         deliverFrame({ symbol, sequence: book.sequence, isSnapshot: false, bids, asks });
     }
@@ -752,7 +864,7 @@
             // what the user chose and the host acts.
             onSelect: (symbol) => {
                 widget.setCurrentSymbol(symbol);
-                logLine('act', `watchlist.onSelect("${symbol}") — host highlighted the row`);
+                logLine('act', `watchlist.onSelect("${symbol}") — host highlighted the row`, ControlTypes.Watchlist);
             },
         });
         return widget;
@@ -764,7 +876,7 @@
             closePosition: (portfolioId, instrumentId, symbol) => {
                 const position = state.positions.find(p => p.instrument === symbol);
                 if (!position) return;
-                logLine('act', `closePosition(${portfolioId}, ${instrumentId}, "${symbol}") — flattening at the last price`);
+                logLine('act', `closePosition(${portfolioId}, ${instrumentId}, "${symbol}") — flattening at the last price`, ControlTypes.Positions);
                 const u = universeOf(symbol);
                 addExecution(symbol, position.quantity > 0 ? Sides.Sell : Sides.Buy, Math.abs(position.quantity), u.price, state.nextOrderId++);
                 applyFill(symbol, position.quantity < 0, Math.abs(position.quantity), u.price);
@@ -772,14 +884,14 @@
             reversePosition: (portfolioId, instrumentId, symbol) => {
                 const position = state.positions.find(p => p.instrument === symbol);
                 if (!position) return;
-                logLine('act', `reversePosition(${portfolioId}, ${instrumentId}, "${symbol}") — trading twice the size the other way`);
+                logLine('act', `reversePosition(${portfolioId}, ${instrumentId}, "${symbol}") — trading twice the size the other way`, ControlTypes.Positions);
                 const u = universeOf(symbol);
                 const quantity = Math.abs(position.quantity) * 2;
                 addExecution(symbol, position.quantity > 0 ? Sides.Sell : Sides.Buy, quantity, u.price, state.nextOrderId++);
                 applyFill(symbol, position.quantity < 0, quantity, u.price);
             },
             refreshPositions: () => {
-                logLine('act', 'refreshPositions() — host re-pushed its snapshot');
+                logLine('act', 'refreshPositions() — host re-pushed its snapshot', ControlTypes.Positions);
                 widget.update(clone(state.positions.map(markToMarket)));
                 widget.updateBalance(clone(state.balance));
             },
@@ -793,33 +905,34 @@
         const widget = ActiveOrdersWidget.create(hostEl, {}, {
             host: makeHost(ControlTypes.ActiveOrders),
             cancelOrder: (orderId) => {
-                logLine('act', `cancelOrder(${orderId}) — venue acknowledged`);
+                logLine('act', `cancelOrder(${orderId}) — venue acknowledged`, ControlTypes.ActiveOrders);
                 updateOrder(orderId, { status: OrderStates.Cancelled });
             },
             // Nothing left to cancel on a terminal row: the × drops it locally.
             dismissOrder: (orderId) => {
-                logLine('act', `dismissOrder(${orderId}) — removed from the local view only`);
+                logLine('act', `dismissOrder(${orderId}) — removed from the local view only`, ControlTypes.ActiveOrders);
                 state.orders = state.orders.filter(o => o.id !== orderId);
                 widget.removeOrder(orderId);
+                pushStatistics();
             },
             // The double-click on an editable cell reaches the host, and the host
             // asks the control to open its editor. The control owns the input; the
             // host owns the decision that editing is allowed.
             editOrderField: (orderId, field) => {
-                logLine('act', `editOrderField(${orderId}, "${field}") — host opened the inline editor`);
+                logLine('act', `editOrderField(${orderId}, "${field}") — host opened the inline editor`, ControlTypes.ActiveOrders);
                 widget.startInlineEdit(orderId, field);
             },
             replaceOrder: (orderId, quantity, limitPrice, stopPrice) => {
-                logLine('act', `replaceOrder(${orderId}, qty ${quantity}, limit ${limitPrice}, stop ${stopPrice})`);
+                logLine('act', `replaceOrder(${orderId}, qty ${quantity}, limit ${limitPrice}, stop ${stopPrice})`, ControlTypes.ActiveOrders);
                 updateOrder(orderId, { quantity, balance: quantity, limitPrice, stopPrice });
             },
             cancelAllOrders: () => {
                 const activeIds = state.orders.filter(o => o.status === OrderStates.Active).map(o => o.id);
-                logLine('act', `cancelAllOrders() — ${activeIds.length} resting order(s)`);
+                logLine('act', `cancelAllOrders() — ${activeIds.length} resting order(s)`, ControlTypes.ActiveOrders);
                 for (const id of activeIds) updateOrder(id, { status: OrderStates.Cancelled });
             },
             refreshOrders: () => {
-                logLine('act', 'refreshOrders() — host re-pushed its snapshot');
+                logLine('act', 'refreshOrders() — host re-pushed its snapshot', ControlTypes.ActiveOrders);
                 widget.update(clone(state.orders));
             },
         });
@@ -879,7 +992,7 @@
                 const u = universeOf(ORDER_ENTRY_SPEC.symbol);
                 const apiType = OrderEntryWidget.toApiType(values.type);
                 const at = values.limitPrice != null ? ` @ ${values.limitPrice}` : '';
-                logLine('act', `submitOrder("${side}", ${values.type} ${values.quantity} ${ORDER_ENTRY_SPEC.symbol}${at})`);
+                logLine('act', `submitOrder("${side}", ${values.type} ${values.quantity} ${ORDER_ENTRY_SPEC.symbol}${at})`, ControlTypes.OrderEntry);
 
                 const id = state.nextOrderId++;
                 if (apiType === OrderTypes.Market) {
@@ -919,7 +1032,7 @@
             // A plain click prefills a price, and that is all: the ladder reports
             // the level and the side, the host decides what to do with it.
             onPriceSelected: (price, side) => {
-                logLine('act', `onPriceSelected(${price}, ${side}) — prefilling the order pad`);
+                logLine('act', `onPriceSelected(${price}, ${side}) — prefilling the order pad`, ControlTypes.OrderBook);
                 const pad = live.get(ControlTypes.OrderEntry);
                 if (pad) {
                     pad.preselect(side === Sides.Buy ? OrderEntrySides.Buy : OrderEntrySides.Sell);
@@ -932,7 +1045,7 @@
             onPriceExecuted: (price, side) => {
                 const buy = side === Sides.Buy;
                 const quantity = size();
-                logLine('act', `onPriceExecuted(${price}, ${side}) — resting ${quantity} ${buy ? 'bid' : 'offer'}`);
+                logLine('act', `onPriceExecuted(${price}, ${side}) — resting ${quantity} ${buy ? 'bid' : 'offer'}`, ControlTypes.OrderBook);
                 state.orders.unshift({
                     id: state.nextOrderId++,
                     localId: Math.max(0, ...state.orders.map(o => o.localId || 0)) + 1,
@@ -1014,6 +1127,574 @@
         // does not: which symbol the page is on, and what has printed so far.
         widget.setActiveSymbol(FEED_SYMBOL);
         widget.setTrades(seedTape(FEED_SYMBOL));
+        return widget;
+    }
+
+    // -------------------------------------------------------------- statistics
+
+    // What the fills add up to. The tape is replayed oldest-first because the figures
+    // below are properties of the path the run took, not of the snapshot it ended on:
+    // a win, a loss and a drawdown only exist in order. The averaging and realizing
+    // rules are `applyFill`'s, applied to a private ledger so the replay leaves the
+    // portfolio alone.
+    function replayFills() {
+        const ledger = new Map();
+        const closes = [];
+        let realized = 0;
+        let maxLong = 0;
+        let maxShort = 0;
+
+        // `state.trades` is newest-first, the way the blotter reads it.
+        for (const fill of state.trades.slice().reverse()) {
+            const quantity = Math.abs(fill.quantity);
+            const signed = isBuy(fill.side) ? quantity : -quantity;
+            let held = ledger.get(fill.instrumentSymbol);
+            if (!held) {
+                held = { quantity: 0, avgPrice: fill.price, lastPrice: fill.price };
+                ledger.set(fill.instrumentSymbol, held);
+            }
+            held.lastPrice = fill.price;
+
+            const oldQty = held.quantity;
+            const newQty = oldQty + signed;
+            if (oldQty === 0 || Math.sign(oldQty) === Math.sign(signed)) {
+                held.avgPrice = (Math.abs(oldQty) * held.avgPrice + quantity * fill.price) / (Math.abs(oldQty) + quantity);
+            } else {
+                const closed = Math.min(Math.abs(oldQty), quantity);
+                const profit = (fill.price - held.avgPrice) * closed * Math.sign(oldQty);
+                realized += profit;
+                closes.push(profit);
+                if (newQty !== 0 && Math.sign(newQty) !== Math.sign(oldQty)) held.avgPrice = fill.price;
+            }
+            held.quantity = newQty;
+
+            // Exposure is money, not quantity: 400 shares and 0.75 bitcoin are
+            // comparable only once they are priced.
+            let long = 0;
+            let short = 0;
+            for (const open of ledger.values()) {
+                const value = open.quantity * open.lastPrice;
+                if (value > 0) long += value;
+                else short -= value;
+            }
+            if (long > maxLong) maxLong = long;
+            if (short > maxShort) maxShort = short;
+        }
+
+        // The open books at the live price, which is what makes a tick move the panel
+        // and not only a fill.
+        let unrealized = 0;
+        for (const [symbol, held] of ledger) {
+            const u = universeOf(symbol);
+            unrealized += ((u ? u.price : held.lastPrice) - held.avgPrice) * held.quantity;
+        }
+
+        return {
+            realized,
+            unrealized,
+            netProfit: realized + unrealized,
+            closes,
+            wins: closes.filter(profit => profit > 0).length,
+            losses: closes.filter(profit => profit < 0).length,
+            maxLong,
+            maxShort,
+        };
+    }
+
+    // The replay, plus the run's high-water mark advanced by it. Recomputing the peak
+    // from the snapshot would read zero forever, because a snapshot taken after the
+    // fall no longer contains the height it fell from.
+    function runFigures() {
+        const run = replayFills();
+        const mark = state.equity;
+
+        if (run.netProfit > mark.peak) {
+            mark.peak = run.netProfit;
+            mark.peakAt = new Date().toISOString();
+        }
+        const fall = mark.peak - run.netProfit;
+        if (fall > mark.drawdown) mark.drawdown = fall;
+
+        return run;
+    }
+
+    // One row as the panel reads it. The key and the category are stable across a
+    // language switch and the order places the row; the wording for both is the
+    // host's, because a statistic reaches this control already captioned.
+    function statRow(category, order, key, value) {
+        const text = LANG.stats;
+        return {
+            key,
+            category,
+            categoryText: text.categories[category] || category,
+            order,
+            name: text.names[key] || key,
+            description: text.hints[key] || '',
+            value,
+        };
+    }
+
+    // The whole set, derived from the run rather than typed out. The orders are banded
+    // the way the desktop registry bands them - P&L below a hundred, trades from a
+    // hundred, positions from two hundred, orders from three hundred - and that banding
+    // is what lays the groups out in that sequence. Null rather than zero wherever
+    // nothing has been measured: the panel leaves such a cell blank, and a zero would
+    // read as a measured nothing.
+    function computeStatistics() {
+        const run = runFigures();
+        const mark = state.equity;
+        const positions = state.positions.map(markToMarket);
+        const capital = (state.balance && state.balance.total) || 0;
+        const exposure = positions.reduce((sum, p) => sum + Math.abs(p.quantity * (p.currentPrice || p.avgPrice)), 0);
+        const closes = run.closes.length;
+        const countOrders = (status) => state.orders.filter(o => o.status === status).length;
+
+        return [
+            statRow('pnl', 1, 'NetProfit', run.netProfit),
+            statRow('pnl', 2, 'RealizedPnL', run.realized),
+            statRow('pnl', 3, 'UnrealizedPnL', run.unrealized),
+            statRow('pnl', 4, 'MaxProfit', mark.peak),
+            // A moment, not a number - the panel prints it as a date.
+            statRow('pnl', 5, 'MaxProfitDate', mark.peakAt),
+            statRow('pnl', 6, 'MaxDrawdown', mark.drawdown),
+            statRow('pnl', 7, 'MaxRelativeDrawdown', mark.peak > 0 ? (mark.drawdown / mark.peak) * 100 : null),
+            statRow('pnl', 8, 'Capital', capital),
+            statRow('pnl', 9, 'Return', capital > 0 ? (run.netProfit / capital) * 100 : null),
+
+            statRow('trades', 100, 'TradeCount', state.trades.length),
+            statRow('trades', 101, 'WinningTrades', run.wins),
+            statRow('trades', 102, 'LosingTrades', run.losses),
+            statRow('trades', 103, 'WinRate', closes > 0 ? (run.wins / closes) * 100 : null),
+            statRow('trades', 104, 'MaxWin', closes > 0 ? Math.max.apply(null, run.closes) : null),
+            statRow('trades', 105, 'MaxLoss', closes > 0 ? Math.min.apply(null, run.closes) : null),
+
+            statRow('positions', 200, 'PositionCount', positions.length),
+            statRow('positions', 201, 'CurrentExposure', exposure),
+            statRow('positions', 202, 'MaxLongPosition', run.maxLong),
+            statRow('positions', 203, 'MaxShortPosition', run.maxShort),
+
+            statRow('orders', 300, 'OrderCount', state.orders.length),
+            statRow('orders', 301, 'ActiveOrders', countOrders(OrderStates.Active)),
+            statRow('orders', 302, 'FilledOrders', countOrders(OrderStates.Filled)),
+            statRow('orders', 303, 'CancelledOrders', countOrders(OrderStates.Cancelled)),
+            statRow('orders', 304, 'RejectedOrders', countOrders(OrderStates.Rejected)),
+        ];
+    }
+
+    // The set is worked out even when the panel is closed, because the run's high-water
+    // mark has to keep moving with the market: reopening the panel must not hand the
+    // run a fresh peak and a drawdown of nothing.
+    function pushStatistics() {
+        const rows = computeStatistics();
+        const statistics = live.get(ControlTypes.Statistics);
+        if (!statistics) return;
+        logLine('dim', `statistics.update(${rows.length} parameters from ${state.trades.length} fills)`, ControlTypes.Statistics);
+        statistics.update(rows);
+    }
+
+    function createStatistics(hostEl) {
+        const widget = StatisticsWidget.create(hostEl, {}, { host: makeHost(ControlTypes.Statistics) });
+        // The panel takes no callbacks: a statistic is produced by the run and there is
+        // nothing on the table to act on. So everything it shows is pushed - here at
+        // first paint, and again on every tick and every fill.
+        const rows = computeStatistics();
+        logLine('act', `statistics: first set pushed - ${rows.length} parameters derived from the run`, ControlTypes.Statistics);
+        widget.update(rows);
+        return widget;
+    }
+
+    // -------------------------------------------------------------- strategies
+
+    // The one account this demo trades. The dashboard's Portfolio column wants a word
+    // where a position row carries PORTFOLIO_ID, so the host supplies one.
+    const STRATEGY_PORTFOLIO = 'Sim';
+
+    // What a run may do, in the order the dashboard offers them. Keys, not captions:
+    // the control words each through t().
+    const STRATEGY_MODES = ['Full', 'CancelOrders', 'Disabled'];
+
+    // How much curve a seeded run arrives with. There is no second number for how much a live
+    // run keeps: it keeps all of it, and the sparkline compresses the whole run into its box, so
+    // a new sample changes the curve's shape instead of pushing the run's start off the left.
+    const STRATEGY_SEED_POINTS = 40;
+
+    // How long forming and stopping take. A run does not go from Stopped to Started in
+    // one frame, and the dashboard has a word for each half-state.
+    const STRATEGY_TRANSITION_MS = 700;
+
+    const strategyOf = (id) => state.strategies.find(s => s.id === id) || null;
+
+    // What the run has made: what it banked, plus what its open lot is worth now.
+    function strategyPnl(strategy) {
+        const u = universeOf(strategy.symbol);
+        const unrealized = u && strategy.position !== 0 ? (u.price - strategy.avgPrice) * strategy.position : 0;
+        return { realized: strategy.realized, unrealized, total: strategy.realized + unrealized };
+    }
+
+    // A walk that converges on where the run actually stands, so the seeded curve ends
+    // on the same number the P&L column shows. Time is the sample index: the curve
+    // reads only the spacing between points, and this demo's clock is ticks.
+    function seedStrategyCurve(strategy) {
+        const end = strategyPnl(strategy).total - strategy.anchor;
+        const points = [];
+        let value = 0;
+        for (let i = 0; i < STRATEGY_SEED_POINTS; i++) {
+            value += (end - value) / (STRATEGY_SEED_POINTS - i) + (Math.random() - 0.5) * Math.abs(end) * 0.3;
+            points.push({ time: i, value });
+        }
+        points.push({ time: STRATEGY_SEED_POINTS, value: end });
+        return points;
+    }
+
+    // The row the dashboard reads. `pnlChange` is measured from the anchor the current
+    // run started at - the widget leaves that number to the host to mean, and this host
+    // means "what this run has made".
+    function toStrategyRow(strategy) {
+        const pnl = strategyPnl(strategy);
+        return {
+            id: strategy.id,
+            name: strategy.name,
+            state: strategy.state,
+            // Formed and connected, which is one condition: running, with nothing wrong
+            // with its feed.
+            online: strategy.state === StrategyStates.Started && !strategy.error,
+            tradingMode: strategy.mode,
+            portfolio: STRATEGY_PORTFOLIO,
+            security: strategy.symbol,
+            position: strategy.position,
+            ordersCount: strategy.orders,
+            tradesCount: strategy.trades,
+            pnlChange: pnl.total - strategy.anchor,
+            realized: pnl.realized,
+            unrealized: pnl.unrealized,
+            pnl: strategy.pnl,
+            error: strategy.error,
+        };
+    }
+
+    // A market order a run sends, and the three places its fill lands: the run's own
+    // book, the trade history, and the account.
+    function sendStrategyOrder(strategy, buy, quantity, price) {
+        const side = buy ? Sides.Buy : Sides.Sell;
+        const orderId = state.nextOrderId++;
+
+        // The run's own book, kept apart from the portfolio's: a strategy is judged on
+        // what it did, not on what the account happens to hold. Two lines because a run
+        // here is only ever flat or holding one lot.
+        if (strategy.position === 0) strategy.avgPrice = price;
+        else strategy.realized += (price - strategy.avgPrice) * strategy.position;
+        strategy.position = strategy.position === 0 ? (buy ? quantity : -quantity) : 0;
+        strategy.orders += 1;
+        strategy.trades += 1;
+
+        addExecution(strategy.symbol, side, quantity, price, orderId);
+        applyFill(strategy.symbol, buy, quantity, price);
+        logLine(buy ? 'up' : 'down',
+            `${strategy.name}: ${presentation.sideText(side)} ${quantity} ${strategy.symbol} @ ${price} - the run's own fill`,
+            ControlTypes.Strategies);
+    }
+
+    // What a running strategy does with a tick, and what the trading mode is for: Full
+    // may open and close, CancelOrders may only take risk off, Disabled sends nothing.
+    function stepStrategy(strategy) {
+        if (strategy.state !== StrategyStates.Started || strategy.mode === 'Disabled') return;
+        const u = universeOf(strategy.symbol);
+        if (!u) return;
+
+        if (strategy.position !== 0) {
+            if (Math.random() < 0.25) sendStrategyOrder(strategy, strategy.position < 0, Math.abs(strategy.position), u.price);
+            return;
+        }
+        if (strategy.mode === 'Full' && Math.random() < 0.2)
+            sendStrategyOrder(strategy, Math.random() < 0.5, strategy.lot, u.price);
+    }
+
+    // One sample per tick while a run is alive - this is what grows the sparkline. A flat run
+    // still samples: its curve is level, which is the honest picture.
+    function sampleStrategy(strategy) {
+        if (strategy.state === StrategyStates.Stopped) return;
+        strategy.pnl.push({ time: strategy.samples++, value: strategyPnl(strategy).total - strategy.anchor });
+    }
+
+    // The dashboard takes whole snapshots - it has no per-row patch - so a tick
+    // repaints it. It holds off while a trading-mode select is open: the repaint
+    // replaces the row, and the dropdown would close under the pointer.
+    function pushStrategies() {
+        const panel = live.get(ControlTypes.Strategies);
+        if (!panel) return;
+        const focused = document.activeElement;
+        if (focused && focused.classList.contains('strategy-mode') && panel.rootEl.contains(focused)) return;
+        panel.update(state.strategies.map(toStrategyRow));
+    }
+
+    function createStrategies(hostEl) {
+        const widget = StrategiesWidget.create(hostEl, {}, {
+            host: makeHost(ControlTypes.Strategies),
+            // The modes this host can put a run in, in the order it offers them. The
+            // control words each one through t(), so these are keys, not captions.
+            tradingModes: STRATEGY_MODES,
+            // Forming is not instant and the dashboard has a word for the wait, so the
+            // host says Starting first and Started once the run has formed.
+            start: (id) => {
+                const strategy = strategyOf(id);
+                if (!strategy || strategy.state !== StrategyStates.Stopped) return;
+                logLine('act', `strategies.start("${id}") - ${strategy.name} is forming`, ControlTypes.Strategies);
+                strategy.state = StrategyStates.Starting;
+                strategy.error = null;
+                // A run is measured from where it starts: the change column and the
+                // curve both restart here rather than carrying the last run's number.
+                strategy.anchor = strategyPnl(strategy).total;
+                strategy.pnl = [{ time: strategy.samples++, value: 0 }];
+                pushStrategies();
+                setTimeout(() => {
+                    if (strategy.state !== StrategyStates.Starting) return;
+                    strategy.state = StrategyStates.Started;
+                    logLine('act', `strategies: ${strategy.name} formed and is running`, ControlTypes.Strategies);
+                    pushStrategies();
+                }, STRATEGY_TRANSITION_MS);
+            },
+            // Stopping ends the run, not the position: flattening is its own button, and
+            // a host that did both would take off a position nobody asked it to.
+            stop: (id) => {
+                const strategy = strategyOf(id);
+                if (!strategy || strategy.state !== StrategyStates.Started) return;
+                logLine('act', `strategies.stop("${id}") - ${strategy.name} is cancelling its orders`, ControlTypes.Strategies);
+                strategy.state = StrategyStates.Stopping;
+                pushStrategies();
+                setTimeout(() => {
+                    if (strategy.state !== StrategyStates.Stopping) return;
+                    strategy.state = StrategyStates.Stopped;
+                    logLine('act', `strategies: ${strategy.name} stopped, still holding ${strategy.position}`, ControlTypes.Strategies);
+                    pushStrategies();
+                }, STRATEGY_TRANSITION_MS);
+            },
+            closePosition: (id) => {
+                const strategy = strategyOf(id);
+                if (!strategy || strategy.position === 0) return;
+                const u = universeOf(strategy.symbol);
+                logLine('act', `strategies.closePosition("${id}") - flattening ${strategy.position} ${strategy.symbol} at the last price`, ControlTypes.Strategies);
+                sendStrategyOrder(strategy, strategy.position < 0, Math.abs(strategy.position), u.price);
+                pushStrategies();
+            },
+            // This demo hosts one board and has no strategy editor, so the call is
+            // reported and nothing opens - the same answer `spawn` gives.
+            openStrategy: (id) => {
+                const strategy = strategyOf(id);
+                logLine('act', `strategies.openStrategy("${id}") - a terminal would open ${strategy ? strategy.name : id} on its own board`, ControlTypes.Strategies);
+            },
+            setTradingMode: (id, mode) => {
+                const strategy = strategyOf(id);
+                if (!strategy) return;
+                logLine('act', `strategies.setTradingMode("${id}", "${mode}") - ${strategy.name} trades to it from the next tick`, ControlTypes.Strategies);
+                strategy.mode = mode;
+                // No push: the select the user just changed already reads the new mode,
+                // and a repaint would pull the focus out of it.
+            },
+        });
+        widget.update(state.strategies.map(toStrategyRow));
+        return widget;
+    }
+
+    // ------------------------------------------------------------- log monitor
+
+    // The host at the root and every control kind currently on the board under it, each
+    // named exactly as its tab is. Sent whole, so a panel that has gone leaves the tree
+    // and a selection pointing at it falls back to everything.
+    function publishLogSources() {
+        const monitor = live.get(ControlTypes.LogMonitor);
+        if (!monitor) return;
+        monitor.setSources([{ id: HOST_SOURCE, name: LANG.page.hostSource }].concat(
+            Object.keys(PANELS)
+                .filter(kind => live.has(kind))
+                .map(kind => ({ id: kind, name: PANELS[kind].title(), parentId: HOST_SOURCE }))));
+    }
+
+    function createLogMonitor(hostEl) {
+        const widget = LogMonitorWidget.create(hostEl, {}, {
+            host: makeHost(ControlTypes.LogMonitor),
+            // The same number the page keeps its own history at, so the panel holds
+            // exactly what it would be seeded with after a close.
+            maxMessages: LOG_HISTORY,
+        });
+        // Everything written before this panel existed: the port calls of the panels
+        // built ahead of it, and its own `register`, which the widget wrote from its
+        // constructor while nothing held a reference to it yet. The queue had nowhere to
+        // drain to; the history holds the same lines, so it is what fills the table.
+        pendingLog.length = 0;
+        widget.append(logHistory.slice());
+        return widget;
+    }
+
+    // ------------------------------------------------------------- option desk
+
+    // The chain is written on an instrument the page already trades, so the desk
+    // re-prices on the same ticks the chart and the ladder move on.
+    const CHAIN_SYMBOL = 'BTC@IMEX';
+
+    // A venue lists strikes on a fixed grid and leaves them there: the ladder is listed
+    // once around the price and the price then moves through it, which is what carries
+    // the in-the-money split across the strikes.
+    const CHAIN_STRIKE_STEP = 250;
+    const CHAIN_WINGS = 5;
+
+    // The front expiry, two days out and fixed at boot, so the time to expiry the desk
+    // is given runs down on the page's own clock.
+    const CHAIN_EXPIRY = Date.now() + 2 * 24 * 3600 * 1000;
+    const YEAR_MS = 365 * 24 * 3600 * 1000;
+
+    // What this host states about the money rather than about any one contract: a demo
+    // money-market rate, and no carry on the underlying.
+    const CHAIN_RISK_FREE = 0.045;
+    const CHAIN_DIVIDEND = 0;
+
+    // The surface the chain is quoted from: at-the-money volatility, how much the wings
+    // lift above it, how much more the downside is worth than the strike the same
+    // distance above, and the extra a put carries over the call on its own strike.
+    // Measured against the move the underlying has left, which is the space a smile
+    // keeps its shape in.
+    const CHAIN_ATM_VOL = 0.48;
+    const CHAIN_SMILE = 0.03;
+    const CHAIN_SKEW = 0.05;
+    const CHAIN_PUT_OVER_CALL = 0.005;
+
+    // Half the bid/ask, in volatility as well: a desk quotes an option in vol and the
+    // two prices follow from it, which is what makes `ivBid` and `ivAsk` the
+    // volatilities the quotes beside them were solved from.
+    const CHAIN_VOL_SPREAD = 0.008;
+
+    // The underlying's realized volatility as the venue reports it: one figure for the
+    // whole chain, because it belongs to the underlying and not to any strike, and under
+    // the implied, which is the usual state of affairs.
+    const CHAIN_HISTORICAL_VOL = 0.44;
+
+    // One entry per strike, holding what a venue keeps between prints: the two contract
+    // symbols, the open interest each carries, the volume each has traded today, and
+    // where in its spread the last print landed.
+    let chain = [];
+
+    function chainBook(symbol, strike, spot, put) {
+        // Heaviest at the money and thinning into the wings, and heavier on the put
+        // side, where the hedges are - the difference the desk's two volume scales
+        // exist to keep readable.
+        const distance = (strike - spot) / (CHAIN_WINGS * CHAIN_STRIKE_STEP);
+        const shape = Math.exp(-2.2 * distance * distance) * (put ? 1.6 : 1);
+        return {
+            symbol,
+            openInterest: Math.round(shape * 900 * (0.7 + Math.random() * 0.6)),
+            volume: Math.round(shape * 180 * (0.5 + Math.random())),
+            lastBias: 0.35 + Math.random() * 0.3,
+        };
+    }
+
+    // The ladder: an odd number of strikes on the venue's grid, the middle one at the
+    // strike nearest the money.
+    function listChain(spot) {
+        const middle = Math.round(spot / CHAIN_STRIKE_STEP) * CHAIN_STRIKE_STEP;
+        const root = CHAIN_SYMBOL.split('@')[0];
+        const expiry = new Date(CHAIN_EXPIRY).toISOString().slice(0, 10);
+        chain = [];
+        for (let i = -CHAIN_WINGS; i <= CHAIN_WINGS; i++) {
+            const strike = middle + i * CHAIN_STRIKE_STEP;
+            const name = `${root}-${expiry.replace(/-/g, '')}-${strike}`;
+            chain.push({
+                strike,
+                call: chainBook(`${name}-C`, strike, spot, false),
+                put: chainBook(`${name}-P`, strike, spot, true),
+            });
+        }
+        logLine('data', `option desk: listed ${chain.length} strikes on ${CHAIN_SYMBOL}, ${chain[0].strike} to ${chain[chain.length - 1].strike}, expiring ${expiry}`, ControlTypes.OptionDesk);
+    }
+
+    // Two strikes of room either side: a price sitting on the outermost rung has no wing
+    // left to read, and a venue would have listed more by then.
+    function chainBrackets(spot) {
+        return chain.length > 0
+            && spot > chain[0].strike + 2 * CHAIN_STRIKE_STEP
+            && spot < chain[chain.length - 1].strike - 2 * CHAIN_STRIKE_STEP;
+    }
+
+    // One contract, quoted the way a desk quotes one: a volatility for the strike, and
+    // the prices Black-Scholes gives at the two ends of the spread around it. No greeks
+    // travel with it - the volatility and the context are everything the desk needs to
+    // price those itself.
+    function chainSide(entry, put, spot, years) {
+        const book = put ? entry.put : entry.call;
+        const type = put ? OptionTypes.Put : OptionTypes.Call;
+        // Distance from the money in standard deviations of the move that is left,
+        // floored at a day so a chain still quotes on its expiry date.
+        const move = CHAIN_ATM_VOL * Math.sqrt(Math.max(years, 1 / 365));
+        const distance = Math.log(entry.strike / spot) / move;
+        const mid = Math.max(0.05, CHAIN_ATM_VOL
+            + CHAIN_SMILE * distance * distance
+            - CHAIN_SKEW * distance
+            + (put ? CHAIN_PUT_OVER_CALL : 0));
+        const spread = CHAIN_VOL_SPREAD * (1 + Math.abs(distance));
+        const bidVol = Math.max(0.01, mid - spread);
+        const askVol = mid + spread;
+        const lastVol = bidVol + (askVol - bidVol) * book.lastBias;
+        const at = (vol) => premium(type, {
+            assetPrice: spot,
+            strike: entry.strike,
+            timeToExpiry: years,
+            riskFree: CHAIN_RISK_FREE,
+            dividend: CHAIN_DIVIDEND,
+            deviation: vol,
+        });
+
+        return {
+            symbol: book.symbol,
+            bid: at(bidVol),
+            ask: at(askVol),
+            last: at(lastVol),
+            theoretical: at(mid),
+            volume: book.volume,
+            openInterest: book.openInterest,
+            ivBid: bidVol,
+            ivAsk: askVol,
+            ivLast: lastVol,
+            historicalVolatility: CHAIN_HISTORICAL_VOL,
+        };
+    }
+
+    // A tick is somebody trading, and what they trade is near the money: the print goes
+    // to the strike closest to the spot, so the volume bars follow the underlying. Open
+    // interest is the venue's overnight figure and does not move with it.
+    function tradeChain(spot) {
+        const nearest = chain.reduce((best, entry) =>
+            (Math.abs(entry.strike - spot) < Math.abs(best.strike - spot) ? entry : best), chain[0]);
+        const book = Math.random() < 0.5 ? nearest.call : nearest.put;
+        book.volume += Math.round(1 + Math.random() * 12);
+    }
+
+    // The chain and the context it is priced against go in one call, because they are
+    // one observation: greeks solved against a spot the desk was told about separately
+    // would describe a moment that never happened.
+    function pushOptionDesk(desk) {
+        const u = universeOf(CHAIN_SYMBOL);
+        const years = Math.max(0, (CHAIN_EXPIRY - Date.now()) / YEAR_MS);
+        if (!chainBrackets(u.price)) listChain(u.price);
+        tradeChain(u.price);
+        desk.update(
+            chain.map(entry => ({
+                strike: entry.strike,
+                call: chainSide(entry, false, u.price, years),
+                put: chainSide(entry, true, u.price, years),
+            })),
+            {
+                assetPrice: u.price,
+                timeToExpiry: years,
+                riskFree: CHAIN_RISK_FREE,
+                dividend: CHAIN_DIVIDEND,
+            });
+    }
+
+    function createOptionDesk(hostEl) {
+        const widget = OptionDeskWidget.create(hostEl, {}, { host: makeHost(ControlTypes.OptionDesk) });
+        // The host shape that sends volatility rather than greeks: this demo has quotes
+        // and an expiry but no pricing service, so it sends the volatility each quote
+        // was solved from and the desk prices delta through rho from that.
+        logLine('data', `option desk: quoting ${CHAIN_SYMBOL} options in volatility - the desk computes the greeks`, ControlTypes.OptionDesk);
+        pushOptionDesk(widget);
         return widget;
     }
 
@@ -1221,6 +1902,10 @@
         [ControlTypes.OrderEntry]: { label: 'order entry', title: () => translate('OrderEntry'), create: createOrderEntry },
         [ControlTypes.TradeFeed]: { label: 'trade feed', title: () => translate('TradeFeed'), create: createTradeFeed },
         [ControlTypes.OrderBook]: { label: 'order book', title: () => translate('OrderBook'), create: createOrderBook },
+        [ControlTypes.Statistics]: { label: 'statistics', title: () => translate('Statistics'), create: createStatistics },
+        [ControlTypes.Strategies]: { label: 'strategies', title: () => translate('Strategies'), create: createStrategies },
+        [ControlTypes.OptionDesk]: { label: 'option desk', title: () => translate('OptionDesk'), create: createOptionDesk },
+        [ControlTypes.LogMonitor]: { label: 'log monitor', title: () => translate('LogMonitor'), create: createLogMonitor },
         hostlog: { label: 'host log', title: () => LANG.page.hostLog, create: createHostLog, lift: ['.hostlog-actions'] },
     };
 
@@ -1305,17 +1990,21 @@
             init() {
                 widget = panel.create(element);
                 if (widget && kind !== 'chart' && kind !== 'hostlog') live.set(kind, widget);
+                // The log's source tree names what is on the board, so the board
+                // changing republishes it.
+                publishLogSources();
                 // Next tick, because the tab element joins the DOM as part of
                 // the same addPanel this init runs in.
                 setTimeout(() => liftHeaderToTab(kind, element), 0);
             },
             dispose() {
                 if (widget && typeof widget.dispose === 'function') {
-                    try { widget.dispose(); } catch (err) { logLine('warn', `${panel.label}: dispose failed — ${err.message}`); }
+                    try { widget.dispose(); } catch (err) { logLine('warn', `${panel.label}: dispose failed — ${err.message}`, HOST_SOURCE); }
                 }
                 widget = null;
                 live.delete(kind);
-                logLine('act', `the ${panel.label} panel left the dock`);
+                publishLogSources();
+                logLine('act', `the ${panel.label} panel left the dock`, HOST_SOURCE);
             },
         };
     }
@@ -1349,6 +2038,10 @@
         [ControlTypes.ActiveOrders, 300],
         [ControlTypes.TradeHistory, 300],
         [ControlTypes.Positions, 300],
+        [ControlTypes.Statistics, 340],
+        [ControlTypes.Strategies, 300],
+        [ControlTypes.OptionDesk, 340],
+        [ControlTypes.LogMonitor, 360],
         ['hostlog', 300],
     ];
 
@@ -1373,6 +2066,10 @@
         addDockPanel(ControlTypes.ActiveOrders, { referencePanel: ControlTypes.OrderEntry, direction: 'right' });
         addDockPanel(ControlTypes.TradeHistory, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
         addDockPanel(ControlTypes.Positions, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel(ControlTypes.Statistics, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel(ControlTypes.Strategies, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel(ControlTypes.OptionDesk, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel(ControlTypes.LogMonitor, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
         addDockPanel('hostlog', { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
 
         const orders = dockApi.getPanel(ControlTypes.ActiveOrders);
@@ -1417,10 +2114,15 @@
         setSize('chart', { width: Math.floor(width * 0.50) });
         setSize(ControlTypes.TradeFeed, { width: Math.floor(width * 0.22) });
         setSize(ControlTypes.OrderBook, { width: Math.floor(width * 0.28) });
-        setSize(ControlTypes.OrderEntry, { height: 260 });
+        // The bottom row is the order pad beside the tabbed panels, and eight tabs share
+        // it: a statistics table of twenty-four rows and an option chain of eleven strikes
+        // both need more than the pad's own 260px, so the row takes a share of the board
+        // and the pad's height is the floor rather than the figure.
+        const bottom = Math.max(260, Math.floor(height * 0.38));
+        setSize(ControlTypes.OrderEntry, { height: bottom });
         // The right column splits between the ladder and the watchlist; the
         // ladder gets the larger share — ten levels a side need the room.
-        setSize(ControlTypes.Watchlist, { height: Math.floor((height - 260) * 0.42) });
+        setSize(ControlTypes.Watchlist, { height: Math.floor((height - bottom) * 0.42) });
     }
 
     function initDock() {
@@ -1469,7 +2171,20 @@
         const positions = live.get(ControlTypes.Positions);
         if (positions) positions.update(clone(state.positions.map(markToMarket)));
 
+        for (const strategy of state.strategies) {
+            stepStrategy(strategy);
+            sampleStrategy(strategy);
+        }
+        pushStrategies();
+
+        const desk = live.get(ControlTypes.OptionDesk);
+        if (desk) pushOptionDesk(desk);
+
         for (const order of Array.from(state.orders)) checkFill(order);
+
+        // Prices moved, so the open positions are worth something else even on a tick
+        // that filled nothing.
+        pushStatistics();
     }
 
     let autoTimer = null;
@@ -1479,12 +2194,12 @@
             clearInterval(autoTimer);
             autoTimer = null;
             button.classList.remove('on');
-            logLine('act', 'auto ticks stopped');
+            logLine('act', 'auto ticks stopped', HOST_SOURCE);
             return;
         }
         autoTimer = setInterval(tick, 1200);
         button.classList.add('on');
-        logLine('act', 'auto ticks started — one tick every 1.2s');
+        logLine('act', 'auto ticks started — one tick every 1.2s', HOST_SOURCE);
     }
 
     // ------------------------------------------------------------------ startup
@@ -1515,7 +2230,7 @@
 
     document.getElementById('resetBtn').addEventListener('click', () => {
         resetState();
-        logLine('act', 'reset — sample prices, positions, orders and fills restored');
+        logLine('act', 'reset — sample prices, positions, orders and fills restored', HOST_SOURCE);
         pushPrices();
         pushOrderEntry();
         const positions = live.get(ControlTypes.Positions);
@@ -1527,6 +2242,11 @@
         if (orders) orders.update(clone(state.orders));
         const history = live.get(ControlTypes.TradeHistory);
         if (history) void history.refresh();
+        pushStrategies();
+        pushStatistics();
+        chain = [];
+        const desk = live.get(ControlTypes.OptionDesk);
+        if (desk) pushOptionDesk(desk);
         // The books are rebuilt around the restored prices, and each ladder is
         // told so the only way it ever is: with a snapshot.
         books.clear();
@@ -1540,7 +2260,7 @@
     // Closed a panel? This puts the whole default board back — the dockview
     // equivalent of the old per-cell "Create it again" button.
     document.getElementById('layoutBtn').addEventListener('click', () => {
-        logLine('act', 'reset layout — rebuilding the default dock');
+        logLine('act', 'reset layout — rebuilding the default dock', HOST_SOURCE);
         dockApi.clear();
         buildDefaultLayout();
         pushPrices();
@@ -1550,7 +2270,7 @@
     // Crossing the breakpoint rebuilds the board in the other shape — the same
     // path the Reset layout button takes.
     MOBILE_BREAKPOINT.addEventListener('change', () => {
-        logLine('act', `viewport crossed the mobile breakpoint — rebuilding as ${MOBILE_BREAKPOINT.matches ? 'a single column' : 'the desktop board'}`);
+        logLine('act', `viewport crossed the mobile breakpoint — rebuilding as ${MOBILE_BREAKPOINT.matches ? 'a single column' : 'the desktop board'}`, HOST_SOURCE);
         dockApi.clear();
         buildDefaultLayout();
         pushPrices();
@@ -1574,7 +2294,7 @@
     document.getElementById('langBtn').addEventListener('click', () => {
         LANG = LANG === window.SSDemoText.en ? window.SSDemoText.zh : window.SSDemoText.en;
         document.documentElement.lang = LANG.htmlLang;
-        logLine('act', `language switched to ${LANG.code} — re-creating every control through its host`);
+        logLine('act', `language switched to ${LANG.code} — re-creating every control through its host`, HOST_SOURCE);
         applyPageText();
         dockApi.clear();
         buildDefaultLayout();
@@ -1587,5 +2307,5 @@
     showClock();
     setInterval(showClock, 1000);
 
-    logLine('act', 'demo host ready — every panel below is a live control over its own TradingHost');
+    logLine('act', 'demo host ready — every panel below is a live control over its own TradingHost', HOST_SOURCE);
 })();

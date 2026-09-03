@@ -35,7 +35,8 @@ const _fromGrid = ['grid-empty', 'visually-hidden', 'sort-asc', 'sort-desc'];
 // than defaulted.
 const _hostStyled = new Set([
     // Structural hooks the controls query themselves; they carry no looks.
-    'positions-body', 'trade-history-body', 'active-orders-body',
+    'positions-body', 'trade-history-body', 'active-orders-body', 'statistics-body',
+    'log-body', 'log-clear-btn', 'strategies-body', 'option-desk-body',
     'watchlist-headers', 'watchlist-search', 'watchlist-pane', 'panel-close-btn',
     'panel-refresh-btn', 'panel-export-btn', 'panel-cancel-all-btn', 'panel-add-btn',
     // The ladder's close button. Its looks come from the `bt-icon-btn
@@ -43,8 +44,10 @@ const _hostStyled = new Set([
     // the button it built.
     'ob-close-btn',
     // Table identity classes; the skin is on `.terminal-table` / `.watchlist-table`.
-    'positions-table', 'trade-history-table', 'active-orders-table',
-    'positions-panel', 'trade-history-panel', 'active-orders-panel',
+    'positions-table', 'trade-history-table', 'active-orders-table', 'statistics-table',
+    'positions-panel', 'trade-history-panel', 'active-orders-panel', 'statistics-panel',
+    'log-monitor-panel', 'strategies-panel', 'strategies-table',
+    'option-desk-panel', 'option-desk-table',
     // Bootstrap's, and Bootstrap Icons'.
     'form-control', 'form-control-sm', 'bi',
     // The grid's own row marker, styled through `.watchlist-table tbody tr`.

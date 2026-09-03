@@ -100,6 +100,28 @@ export interface TradeRow {
 }
 
 /// One tradable instrument, as the instrument search returns it.
+/// One statistic a strategy reports about itself.
+///
+/// The desktop grid reflects these off the strategy's parameter objects; a browser is handed
+/// them already resolved. `category` groups and `order` sorts - both are the registry's, not
+/// the reader's, and neither is the translated text beside it.
+export interface StatisticRow {
+    /// Stable identity, and what the row is addressed by. The parameter's own kind.
+    key: string;
+    /// Grouping key. Stable across languages.
+    category: string;
+    /// What that group is called here.
+    categoryText?: string;
+    /// Where the parameter sits among its peers. Banded by category by the registry.
+    order: number;
+    /// Localized caption.
+    name: string;
+    /// Localized explanation, shown on hover.
+    description?: string;
+    /// A number, a moment, or a word - whatever the parameter measures. Null until measured.
+    value?: number | string | Date | null;
+}
+
 export interface InstrumentRow {
     /// Qualified symbol — `BTC@IMEX`. The display form drops the venue.
     symbol?: string;

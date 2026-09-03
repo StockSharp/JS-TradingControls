@@ -129,6 +129,8 @@ export class FakeCanvasContext {
 
     fillRect(x: number, y: number, width: number, height: number): void { this._record('fillRect', [x, y, width, height]); }
 
+    setLineDash(segments: number[]): void { this._record('setLineDash', segments.slice()); }
+
     beginPath(): void { this._record('beginPath', []); }
 
     closePath(): void { this._record('closePath', []); }

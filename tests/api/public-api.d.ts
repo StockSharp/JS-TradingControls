@@ -59,6 +59,35 @@ export declare class ActiveOrdersWidget {
     _actionButton(order: OrderRow): Node;
 }
 
+// FILE: black-scholes.d.ts
+export declare const OptionTypes: {
+    readonly Call: "call";
+    readonly Put: "put";
+};
+export type OptionType = typeof OptionTypes[keyof typeof OptionTypes];
+export interface OptionInputs {
+    assetPrice: number;
+    strike: number;
+    timeToExpiry: number;
+    riskFree: number;
+    dividend: number;
+    deviation: number;
+}
+export interface Greeks {
+    delta: number;
+    gamma: number;
+    vega: number;
+    theta: number;
+    rho: number;
+}
+export declare function normalCdf(x: number): number;
+export declare function normalPdf(x: number): number;
+export declare function d1(inputs: OptionInputs): number;
+export declare function d2(inputs: OptionInputs): number;
+export declare function premium(type: OptionType, inputs: OptionInputs): number;
+export declare function greeks(type: OptionType, inputs: OptionInputs): Greeks;
+export declare function impliedVolatility(type: OptionType, inputs: OptionInputs, price: number): number | null;
+
 // FILE: control-types.d.ts
 export declare const ControlTypes: {
     readonly Watchlist: "watchlist";
@@ -68,6 +97,10 @@ export declare const ControlTypes: {
     readonly OrderBook: "orderbook";
     readonly TradeFeed: "tradefeed";
     readonly OrderEntry: "orderEntry";
+    readonly Statistics: "statistics";
+    readonly LogMonitor: "logMonitor";
+    readonly Strategies: "strategies";
+    readonly OptionDesk: "optionDesk";
 };
 export type ControlType = typeof ControlTypes[keyof typeof ControlTypes];
 
@@ -95,7 +128,7 @@ export declare function makeGridMenu<TRow>(host: TradingHost): GridMenuOptions<T
 // FILE: index.d.ts
 export { MarketDataLevels, PRESENTATION_CLASSES, assertHost } from './trading-host.js';
 export type { HostStore, MarketDataClient, MarketDataLevel, TickerSink, TradingApi, TradingContext, TradingControl, TradingHost, TradingPresentation, } from './trading-host.js';
-export type { BalanceRow, InstrumentRow, OrderRow, OrderSide, OrderStatus, OrderType, PositionRow, QuoteStats, TradeRow, } from './trading-data.js';
+export type { BalanceRow, InstrumentRow, OrderRow, OrderSide, OrderStatus, OrderType, PositionRow, QuoteStats, StatisticRow, TradeRow, } from './trading-data.js';
 export { ControlTypes } from './control-types.js';
 export type { ControlType } from './control-types.js';
 export { cleanRejectReason, formatPnl, formatPrice, formatQty, formatTime } from './formatters.js';
@@ -115,12 +148,174 @@ export { OrderBookWidget } from './orderbook-widget.js';
 export type { OrderBookDeps, OrderBookView } from './orderbook-widget.js';
 export type { BookLevel, OrderBookFrame, QuoteLevel } from './trading-data.js';
 export type { CanvasPalette } from './trading-host.js';
+export { compressPnl, drawPnlCurve, pnlCurve } from './pnl-curve.js';
+export type { PnlBox, PnlCurve, PnlCurveContext, PnlCurveStyle, PnlPoint } from './pnl-curve.js';
+export { OptionDeskWidget, greekPlaces, greekScales, scaleChain, sideGreeks } from './option-desk-widget.js';
+export type { OptionChainContext, OptionDeskDeps, OptionSide, OptionStrike } from './option-desk-widget.js';
+export { OptionTypes, d1, d2, greeks, impliedVolatility, normalCdf, normalPdf, premium } from './black-scholes.js';
+export type { Greeks, OptionInputs, OptionType } from './black-scholes.js';
+export { StrategiesWidget, StrategyStates } from './strategies-widget.js';
+export type { StrategiesActions, StrategiesDeps, StrategyRow, StrategyState } from './strategies-widget.js';
+export { LogMonitorWidget } from './log-monitor-widget.js';
+export type { LogMonitorDeps } from './log-monitor-widget.js';
+export { LogLevels, buildLogTree, keepLog, subtreeOf } from './log-tree.js';
+export type { LogLevel, LogMessageRow, LogSourceNode, LogTreeNode, LogView } from './log-tree.js';
+export { StatisticsWidget, formatStatistic } from './statistics-widget.js';
+export type { StatisticsDeps } from './statistics-widget.js';
 export { TradeFeedWidget } from './tradefeed-widget.js';
 export type { TradeFeedDeps } from './tradefeed-widget.js';
 export { aggregateBubbles } from './tradefeed-aggregator.js';
 export type { FeedBubble, FeedTick } from './tradefeed-aggregator.js';
 export { layoutBubbles } from './tradefeed-bubbles.js';
 export type { BubbleAxisTick, BubbleLane, BubbleLaneShape, BubbleLayout, BubbleLayoutInput, BubbleShape } from './tradefeed-bubbles.js';
+export { makeGridMenu } from './grid-menu.js';
+
+// FILE: log-monitor-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import { type LogMessageRow, type LogSourceNode, type LogTreeNode } from './log-tree.js';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
+export interface LogMonitorDeps {
+    host: TradingHost;
+    maxMessages?: number;
+}
+export declare class LogMonitorWidget {
+    static TYPE: "logMonitor";
+    rootEl: HTMLElement;
+    el: HTMLElement | null;
+    _host: TradingHost;
+    _max: number;
+    _closeBtn: HTMLElement | null;
+    _clearBtn: HTMLElement | null;
+    _exportBtn: HTMLElement | null;
+    _treeEl: HTMLElement | null;
+    _filterEl: HTMLInputElement | null;
+    _sources: LogSourceNode[];
+    _messages: LogMessageRow[];
+    _levels: Set<string>;
+    _text: string;
+    _selected: string | null;
+    _grid: DataGrid<LogMessageRow> | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: LogMonitorDeps): LogMonitorWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: LogMonitorDeps);
+    dispose(): void;
+    setSources(sources: LogSourceNode[]): void;
+    append(messages: LogMessageRow[]): void;
+    clear(): void;
+    select(sourceId: string | null): void;
+    visible(): LogMessageRow[];
+    _render(): void;
+    _renderTree(): void;
+    _appendNode(into: HTMLElement, node: LogTreeNode): void;
+    _treeRow(node: LogTreeNode, id: string | null): HTMLElement;
+    _export(): void;
+    _columns(): GridColumn<LogMessageRow>[];
+    _sourceName(id: string): string;
+}
+
+// FILE: log-tree.d.ts
+export declare const LogLevels: {
+    readonly Error: "error";
+    readonly Warning: "warning";
+    readonly Info: "info";
+    readonly Debug: "debug";
+    readonly Verbose: "verbose";
+};
+export type LogLevel = typeof LogLevels[keyof typeof LogLevels];
+export interface LogSourceNode {
+    id: string;
+    name: string;
+    parentId?: string | null;
+}
+export interface LogTreeNode extends LogSourceNode {
+    depth: number;
+    children: LogTreeNode[];
+}
+export interface LogMessageRow {
+    id: number | string;
+    time: number | string;
+    level: LogLevel | string;
+    sourceId: string;
+    source?: string;
+    message: string;
+}
+export declare function buildLogTree(sources: readonly LogSourceNode[]): LogTreeNode[];
+export declare function subtreeOf(sources: readonly LogSourceNode[], selectedId: string | null): Set<string> | null;
+export interface LogView {
+    levels: ReadonlySet<string>;
+    text: string;
+    sources: ReadonlySet<string> | null;
+}
+export declare function keepLog(message: LogMessageRow, view: LogView): boolean;
+
+// FILE: option-desk-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import { type Greeks } from './black-scholes.js';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
+export interface OptionSide {
+    symbol?: string;
+    bid?: number | null;
+    ask?: number | null;
+    last?: number | null;
+    theoretical?: number | null;
+    volume?: number | null;
+    openInterest?: number | null;
+    ivBid?: number | null;
+    ivAsk?: number | null;
+    ivLast?: number | null;
+    historicalVolatility?: number | null;
+    greeks?: Greeks;
+}
+export interface OptionStrike {
+    strike: number;
+    call: OptionSide;
+    put: OptionSide;
+}
+export interface OptionChainContext {
+    assetPrice?: number | null;
+    timeToExpiry?: number | null;
+    riskFree?: number;
+    dividend?: number;
+}
+export interface OptionDeskDeps {
+    host: TradingHost;
+}
+interface DeskRow extends OptionStrike {
+    maxCallVolume: number;
+    maxPutVolume: number;
+    maxCallOpenInterest: number;
+    maxPutOpenInterest: number;
+    maxVolatility: number;
+    callIntrinsic: number;
+    putIntrinsic: number;
+}
+export declare class OptionDeskWidget {
+    static TYPE: "optionDesk";
+    rootEl: HTMLElement;
+    el: HTMLElement | null;
+    _host: TradingHost;
+    _closeBtn: HTMLElement | null;
+    _exportBtn: HTMLElement | null;
+    _rows: DeskRow[];
+    _context: OptionChainContext;
+    _places: Record<keyof Greeks, number>;
+    _grid: DataGrid<DeskRow> | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OptionDeskDeps): OptionDeskWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: OptionDeskDeps);
+    dispose(): void;
+    update(strikes: OptionStrike[], context?: OptionChainContext): void;
+    rows(): readonly DeskRow[];
+    _export(): void;
+    _rowClass(row: DeskRow): string;
+    _columns(): GridColumn<DeskRow>[];
+    _bar(value: number | null | undefined, max: number, kind: 'call' | 'put' | 'iv', text: string): string | Node;
+}
+export declare function scaleChain(strikes: readonly OptionStrike[], context: OptionChainContext): DeskRow[];
+export declare function sideGreeks(row: OptionStrike, which: 'call' | 'put', context: OptionChainContext): Greeks | null;
+export declare function greekPlaces(values: readonly (number | null | undefined)[]): number;
+export declare function greekScales(rows: readonly OptionStrike[], context: OptionChainContext): Record<keyof Greeks, number>;
+export {};
 
 // FILE: order-entry-widget.d.ts
 import { TradingHost } from './trading-host.js';
@@ -335,6 +530,50 @@ export declare class OrderBookWidget {
     _strokeDepthSide(ctx: CanvasRenderingContext2D, line: [number, number][], color: string, geometry: DepthGeometry, ratio: number): void;
 }
 
+// FILE: pnl-curve.d.ts
+export interface PnlPoint {
+    time: number;
+    value: number;
+}
+export interface PnlBox {
+    width: number;
+    height: number;
+    padX: number;
+    padY: number;
+}
+export interface PnlCurve {
+    points: [number, number][];
+    area: [number, number][];
+    zeroY: number;
+    min: number;
+    max: number;
+    positive: boolean;
+}
+export declare function compressPnl(points: readonly PnlPoint[], count: number): PnlPoint[];
+export declare function pnlCurve(points: readonly PnlPoint[], box: PnlBox): PnlCurve | null;
+export interface PnlCurveStyle {
+    up: string;
+    down: string;
+    baseline: string;
+    lineWidth: number;
+    fillOpacity: number;
+}
+export interface PnlCurveContext {
+    clearRect(x: number, y: number, w: number, h: number): void;
+    beginPath(): void;
+    moveTo(x: number, y: number): void;
+    lineTo(x: number, y: number): void;
+    closePath(): void;
+    stroke(): void;
+    fill(): void;
+    setLineDash(segments: number[]): void;
+    globalAlpha: number;
+    strokeStyle: string | CanvasGradient | CanvasPattern;
+    fillStyle: string | CanvasGradient | CanvasPattern;
+    lineWidth: number;
+}
+export declare function drawPnlCurve(ctx: PnlCurveContext, curve: PnlCurve, box: PnlBox, style: PnlCurveStyle): void;
+
 // FILE: positions-widget.d.ts
 import { TradingHost } from './trading-host.js';
 import type { BalanceRow, PositionRow } from './trading-data.js';
@@ -371,6 +610,100 @@ export declare class PositionsWidget {
     static _key(position: PositionRow): string;
     _actionButtons(position: PositionRow): Node;
     _actionButton(styleClass: string, iconClass: string, title: string, label: string, onClick: () => void): HTMLButtonElement;
+}
+
+// FILE: statistics-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import type { StatisticRow } from './trading-data.js';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
+export interface StatisticsDeps {
+    host: TradingHost;
+}
+interface RankedRow extends StatisticRow {
+    categoryRank: number;
+}
+export declare class StatisticsWidget {
+    static TYPE: "statistics";
+    rootEl: HTMLElement;
+    el: HTMLElement | null;
+    _host: TradingHost;
+    _closeBtn: HTMLElement | null;
+    _exportBtn: HTMLElement | null;
+    _rows: RankedRow[];
+    _grid: DataGrid<RankedRow> | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: StatisticsDeps): StatisticsWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: StatisticsDeps);
+    dispose(): void;
+    update(rows: StatisticRow[]): void;
+    _export(): void;
+    _columns(): GridColumn<RankedRow>[];
+}
+export declare function formatStatistic(value: unknown): string;
+export {};
+
+// FILE: strategies-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import { type PnlPoint } from './pnl-curve.js';
+import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
+export declare const StrategyStates: {
+    readonly Stopped: "stopped";
+    readonly Starting: "starting";
+    readonly Started: "started";
+    readonly Stopping: "stopping";
+};
+export type StrategyState = typeof StrategyStates[keyof typeof StrategyStates];
+export interface StrategyRow {
+    id: string;
+    name: string;
+    state: StrategyState | string;
+    online?: boolean;
+    tradingMode?: string;
+    portfolio?: string;
+    security?: string;
+    position?: number | null;
+    ordersCount?: number | null;
+    tradesCount?: number | null;
+    pnlChange?: number | null;
+    realized?: number | null;
+    unrealized?: number | null;
+    pnl?: PnlPoint[];
+    error?: string;
+}
+export interface StrategiesActions {
+    start?(id: string): void;
+    stop?(id: string): void;
+    closePosition?(id: string): void;
+    openStrategy?(id: string): void;
+    riskRules?(id: string): void;
+    setTradingMode?(id: string, mode: string): void;
+}
+export interface StrategiesDeps extends StrategiesActions {
+    host: TradingHost;
+    tradingModes?: readonly string[];
+}
+export declare class StrategiesWidget {
+    static TYPE: "strategies";
+    rootEl: HTMLElement;
+    el: HTMLElement | null;
+    _host: TradingHost;
+    _deps: StrategiesDeps;
+    _closeBtn: HTMLElement | null;
+    _exportBtn: HTMLElement | null;
+    _rows: StrategyRow[];
+    _grid: DataGrid<StrategyRow> | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: StrategiesDeps): StrategiesWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: StrategiesDeps);
+    dispose(): void;
+    update(rows: StrategyRow[]): void;
+    _export(): void;
+    _columns(): GridColumn<StrategyRow>[];
+    _stateCell(row: StrategyRow): string | Node;
+    _actionCell(row: StrategyRow): Node;
+    _positionCell(row: StrategyRow): string | Node;
+    _tradingCell(row: StrategyRow): string | Node;
+    _sparkline(row: StrategyRow): string | Node;
 }
 
 // FILE: trade-history-widget.d.ts
@@ -579,6 +912,15 @@ export interface TradeRow {
     price?: number | null;
     order?: number | null;
     orderId?: number | null;
+}
+export interface StatisticRow {
+    key: string;
+    category: string;
+    categoryText?: string;
+    order: number;
+    name: string;
+    description?: string;
+    value?: number | string | Date | null;
 }
 export interface InstrumentRow {
     symbol?: string;

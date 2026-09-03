@@ -5,3 +5,7 @@ tests/_dist/
 
 # npm pack output
 *.tgz
+
+# Screenshot probe: a scratch file for rendering the panels, not part of the package.
+.shot.ts
+.shot.js

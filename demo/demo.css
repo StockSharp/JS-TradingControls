@@ -418,6 +418,12 @@ body {
 .bi-window-plus::before { content: '\229E'; }
 .bi-list-ul::before { content: '\2630'; }
 .bi-circle-fill::before { content: '\25CF'; font-size: 9px; }
+.bi-play-fill::before { content: '\25B6'; font-size: 11px; }
+.bi-stop-fill::before { content: '\25A0'; font-size: 11px; }
+.bi-x-octagon::before { content: '\2297'; font-size: 13px; }
+.bi-shield-exclamation::before { content: '\26A0'; font-size: 12px; }
+.bi-box-arrow-up-right::before { content: '\2197'; font-size: 13px; }
+.bi-eraser::before { content: '\232B'; font-size: 13px; }
 
 /* ------------------------------------------------------- instrument picker */
 
