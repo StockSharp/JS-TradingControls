@@ -5,10 +5,12 @@
 [![License](https://img.shields.io/badge/license-StockSharp%20EULA-c8202f.svg)](LICENSE)
 
 **StockSharp JS Trading Controls** are the browser panels a trading screen is made
-of. Eleven of them: the **active orders**, **positions** and **trade history**
+of. Fifteen of them: the **active orders**, **positions** and **trade history**
 blotters, a **watchlist** with live quotes and category tabs, an **order entry**
 pad, a **trade feed**, an **order book** ladder, a **statistics** table, a
-**strategies** dashboard, a **log monitor**, and an **option desk**.
+**strategies** dashboard, a **log monitor**, an **option desk** and its
+**smile**, an **equity** curve, and an optimisation **heatmap** with the same
+sweep as a turnable 3D **surface**.
 
 Each control builds its own DOM, renders its own table through
 [`@stocksharp/grids`](https://www.npmjs.com/package/@stocksharp/grids), and reaches
@@ -19,7 +21,7 @@ the outside world through exactly one object — a `TradingHost`.
 [GitHub repository](https://github.com/StockSharp/JS-TradingControls) ·
 [Issue tracker](https://github.com/StockSharp/JS-TradingControls/issues)
 
-![The demo board: a candlestick chart, the trade feed, the order book, the watchlist, the order entry pad and the tabbed blotters, docked the way the terminal docks them](screenshots/panels.jpg)
+![The demo board: a candlestick chart with two moving averages and a legend, the trade feed, the order book, the watchlist, the order entry pad and the tabbed blotters, docked the way the terminal docks them](screenshots/panels.jpg)
 
 The page above is `demo/` — the published bundle over a demo `TradingHost`, no
 server and no network, laid out by the same dockview-core the StockSharp web
@@ -28,10 +30,26 @@ candlestick panel fed by the same simulated prices. The **Host port traffic**
 tab records every call the controls made into that host, which is the whole of
 what they can reach.
 
+It is three boards over one set of data, because these controls do not all belong
+on one screen. `index.html` is the trading screen: chart, ladder, tape, watchlist,
+order pad, blotters and the option desk. `strategies.html` is a running strategy —
+the dashboard, its equity, its statistics and what it said. `optimization.html` is
+one parameter sweep read two ways, as a map of pairs and as the landscape they
+make. The panels, the host and the tape are shared; a board decides only which
+panels are on it and where.
+
 ## Quick start
 
 ```sh
 npm install @stocksharp/trading-controls
+```
+
+`@stocksharp/chart` is a peer dependency, needed by two panels: the equity curve
+and the option smile are charts, and they are built on the engine rather than on
+canvases of their own. Install it beside this package if you use either:
+
+```sh
+npm install @stocksharp/chart
 ```
 
 ```ts
@@ -59,6 +77,17 @@ The package also ships a ready-to-use browser bundle exposed as
 <script>
   const { PositionsWidget } = window.SSTradingControls;
 </script>
+```
+
+The bundle does not carry the chart engine — a page that loads both would
+otherwise hold two copies of it, and two registries of series definitions that do
+not recognise each other's. `EquityWidget` and `OptionSmileWidget` read it off the
+`SSChart` global instead, so load the chart's own bundle (and the indicators
+bundle it needs) alongside:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@stocksharp/indicators/dist/ssindicators.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stocksharp/chart/dist/sschart.js"></script>
 ```
 
 ## The host port is the whole API surface
@@ -125,7 +154,7 @@ Two pairs are deliberately separate rather than merged:
   reads the port names (`getExecutions`, `searchInstruments`), which the host
   implements.
 
-### The 222 keys a host has to answer
+### The 235 keys a host has to answer
 
 `t()` cannot fail. A key the host does not know is rendered to the user as
 itself, so `NoActiveOrders` appears in the empty blotter and `ClosePanel`
@@ -134,7 +163,7 @@ error. The complete list ships with the package:
 
 ```ts
 import keys from '@stocksharp/trading-controls/translation-keys.json';
-// { count: 222, keys: ['Actions', 'ActiveOrders', …] }
+// { count: 235, keys: ['Actions', 'ActiveOrders', …] }
 ```
 
 It is **generated from the sources** (`npm run i18n:update`) and re-checked by
@@ -382,6 +411,85 @@ thousand is about 0.00003, and the four places that suit a delta would show ever
 strike as nothing.
 
 ![The option desk: a BTC chain mirrored around the strike, its smile, per-side volume bars and a green-to-red split at the money](screenshots/option-desk.png)
+
+### `OptionSmileWidget`
+
+The same chain the desk tabulates, drawn as the shape a trader is actually looking
+for: implied volatility against strike, one curve per side, both on one scale
+because the distance between them is the skew. It takes the desk's own
+`OptionStrike[]` and `OptionChainContext`, so a host feeding one feeds the other
+with no conversion.
+
+A strike quoted on one side and not the other leaves a gap rather than a straight
+line through it - a curve drawn across missing data invents a quote that nobody
+made. The underlying's price is marked, since where the money sits is what makes
+a smile a smile rather than a squiggle.
+
+Drawn by `@stocksharp/chart`, which is a time-series engine and this axis is a
+ladder of strikes — one `timeScale.formatter` is all that stands between the two,
+and the axis carries the strike itself, so the label and the value cannot drift
+apart. Spacing is ordinal, because a listed chain is evenly spaced by listing: a
+venue that lists 67000, 67250 and then 68000 means three rungs, not a hole. The
+crosshair, the wheel zoom, the drag and the tick steps come with the engine; the
+readout above the chart is worded here, naming the strike and both sides at it,
+because a smile is read by the distance between the two curves.
+
+![The option smile: call and put volatility by strike on one scale, the crosshair naming the strike and both sides at it, the underlying marked](screenshots/option-smile.png)
+
+### `EquityWidget`
+
+A run's cumulative P&L at the size of a chart. It is the same curve
+`StrategiesWidget` draws in a column and the same arithmetic behind it - the
+package computes that curve once, in `pnl-curve.ts`, and a host that wants an
+equity panel gets it rather than reimplementing the layout for the third time.
+
+What the panel affords that a sparkline cannot: a crosshair that names the moment
+and the figure under the pointer, a wheel that zooms about it, a drag that pans,
+and an axis that picks its own step. All of that is `@stocksharp/chart`'s, which
+is why the panel is built on it; what stays here is the part that is this
+package's — turning a run into a series, wording the moment through
+`presentation.timeText`, and taking the curve's colours from
+`presentation.canvasPalette()` so a panel matches the sparkline in the table
+beside it. The colour follows where the run *ended*: a run that peaked and gave it
+all back is a loss, and the fill says so.
+
+The sparkline is not this. A cell forty pixels tall gets a canvas — a chart engine
+per table row is absurd — so the two draw the same run with different machinery at
+sizes that want different things.
+
+![The equity panel: a run's cumulative P&L filled to the water line, the crosshair naming the moment and the figure under the pointer](screenshots/equity.png)
+
+### `OptimizationHeatmapWidget`
+
+One metric over two parameters. It knows nothing about optimisation - a grid of
+`{x, y, value}` is the same object whatever produced it - so a backtest sweep and
+anything else that varies two things share a control.
+
+`betterWhen` is required rather than assumed: without it the same map of drawdowns
+would paint its worst corner in the winning colour. A pair with no run leaves a
+gap, drawn as one, because an absent result and a zero result are different
+things. Two runs at one pair are two samples of one cell, so the cell is their
+mean and says how many it is the mean of.
+
+![The optimisation heatmap: net profit over a moving-average pair, gaps where no run exists and the best cell marked](screenshots/optimization.png)
+
+### `SurfaceWidget`
+
+The same sweep as a landscape: the metric as height as well as colour, so the
+shape a set of parameters makes is read directly instead of being inferred from a
+grid of tints. It takes the heatmap's own input, so one set of results feeds both
+panels and a consumer offers either.
+
+It is turned, tipped and zoomed by hand, and there is no library under it. The
+projection is six multiplications and the ordering is a sort by depth, both in
+`surface-grid.ts` as arithmetic that is checked against numbers rather than
+against pixels. The gestures are pointer events, so a mouse, a pen and a thumb
+take the same path: one pointer turns, two pinch to zoom, a wheel zooms.
+Orthographic rather than perspective, because a surface is read by comparing
+heights across it and perspective makes the far side of a ridge shorter than the
+near side of the same ridge.
+
+![The optimisation surface: the same sweep as a landscape, turned by hand, with the losing corner in red](screenshots/optimization-surface.png)
 
 ## Exported sheets say what the screen says
 

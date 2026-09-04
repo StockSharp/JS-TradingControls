@@ -46,6 +46,11 @@
         LogMonitorWidget,
         LogLevels,
         OptionDeskWidget,
+        OptionSmileWidget,
+        EquityWidget,
+        OptimizationHeatmapWidget,
+        SurfaceWidget,
+        HeatDirections,
         OptionTypes,
         premium,
         MarketDataLevels,
@@ -91,10 +96,13 @@
     // One winner (BTC), one loser (NVDA, short into a rally), one small winner
     // riding on a realized loss (ESZ5) — so the P&L colouring shows both classes
     // and the "realized + unrealized" total the column actually sorts on.
+    // What the blotter's own fills add up to: the two BTC buys blended, the NVDA short and the
+    // ES long, each at the price its fills were made at. The two lists have to agree - a
+    // position panel that contradicts the trade list beside it is a demo teaching nothing.
     const PRISTINE_POSITIONS = [
-        { portfolioId: PORTFOLIO_ID, instrumentId: 101, instrument: 'BTC@IMEX', quantity: 0.75, avgPrice: 66980.0, realizedPnl: 120.0 },
-        { portfolioId: PORTFOLIO_ID, instrumentId: 203, instrument: 'NVDA@NASDAQ', quantity: -400, avgPrice: 118.9, realizedPnl: 0 },
-        { portfolioId: PORTFOLIO_ID, instrumentId: 301, instrument: 'ESZ5@CME', quantity: 2, avgPrice: 5798.25, realizedPnl: -15.0 },
+        { portfolioId: PORTFOLIO_ID, instrumentId: 101, instrument: 'BTC@IMEX', quantity: 0.75, avgPrice: 68093.33, realizedPnl: 120.0 },
+        { portfolioId: PORTFOLIO_ID, instrumentId: 203, instrument: 'NVDA@NASDAQ', quantity: -400, avgPrice: 120.85, realizedPnl: 0 },
+        { portfolioId: PORTFOLIO_ID, instrumentId: 301, instrument: 'ESZ5@CME', quantity: 2, avgPrice: 5806.75, realizedPnl: -15.0 },
     ];
 
     const PRISTINE_BALANCE = { available: 48250.75, locked: 12500.0, total: 60750.75 };
@@ -126,15 +134,84 @@
         },
     ];
 
+    // A session already behind this page.
+    //
+    // The eight fills below are the ones a reader can check against the blotter by eye. On their
+    // own they are also the whole of the run, which left the equity curve with eight corners and
+    // the statistics measuring almost nothing - a drawdown over eight trades is not a drawdown.
+    // So the tape opens with a few hours of trading before them, generated rather than typed:
+    // what matters is the shape of a session, and two hundred rows written out by hand would fix
+    // one shape forever and be unreadable besides.
+    //
+    // Round trips, not a stream of buys: a fill that closes a position is what books a profit or
+    // a loss, and a tape that only ever opened would draw a curve that never realised anything.
+    const BACKFILL_FILLS = 240;
+    const BACKFILL_MINUTES = 8 * 60;
+
+    function backfillTrades() {
+        // Each instrument walks its own price backwards from where it stands now, newest fill
+        // first: the session has to END at the live price, or the newest backfilled fill and the
+        // first live one price the same instrument hours apart, and the equity curve pays for it
+        // with a step the size of the whole session.
+        const walk = new Map(UNIVERSE.map(u => [u.symbol, { price: u.price, open: 0, avg: 0 }]));
+        const fills = [];
+
+        for (let step = 0; step < BACKFILL_FILLS; step++) {
+            const u = UNIVERSE[Math.floor(Math.random() * UNIVERSE.length)];
+            const book = walk.get(u.symbol);
+
+            // The live tick's drift, widened by two and a half so a few hours cover ground -
+            // not by six. A position here is opened by one fill and closed by the next for its
+            // symbol, so its whole life is two points on the curve: whatever the price moved
+            // between them arrives as one step. At six the step is several times the curve's own
+            // range and the panel draws a picket fence.
+            // Tilted downward going backwards, which is a session that rose: a coin-flip walk
+            // is as likely to end flat as anything, and a demo whose equity never rises shows
+            // neither a peak nor a drawdown - the two things the panel exists to draw.
+            const drift = (Math.random() - 0.54) * 2 * u.vol * 2.5;
+            book.price = Number((book.price * (1 + drift)).toFixed(u.dp));
+
+            const closing = book.open !== 0;
+            const quantity = closing ? Math.abs(book.open) : Number((u.price > 1000 ? 0.25 : 25).toFixed(2));
+            const buy = closing ? book.open < 0 : Math.random() < 0.5;
+
+            // Numbered downward with the walk, because it runs backwards: an older fill has a
+            // smaller id and a smaller order number, the way a blotter reads.
+            fills.push({
+                id: 5510 - step,
+                executedAt: minutesAgo(Math.round(BACKFILL_MINUTES * (step / BACKFILL_FILLS)) + 5),
+                instrumentSymbol: u.symbol,
+                side: buy ? Sides.Buy : Sides.Sell,
+                quantity,
+                price: book.price,
+                order: 89000 + (BACKFILL_FILLS - step),
+            });
+
+            book.open = closing ? 0 : (buy ? quantity : -quantity);
+            if (!closing) book.avg = book.price;
+        }
+
+        // Already newest first, the way the blotter reads and the way the eight below are
+        // written: the walk runs backwards through the session.
+        return fills;
+    }
+
+    // The eight the blotter is written around, newest first. Their prices sit within a few
+    // tenths of a percent of where their instruments trade now, and that is not cosmetic: these
+    // are the last fills of the session, so between them and the live ones there is nothing to
+    // re-price a held position. A fill two percent off the live price makes the equity curve
+    // jump by the size of the position every time the mark crosses back and forth between the
+    // two, which draws a picket fence over an otherwise readable session.
     const PRISTINE_TRADES = [
-        { id: 5518, executedAt: minutesAgo(4), instrumentSymbol: 'ESZ5@CME', side: Sides.Buy, quantity: 2, price: 5798.25, order: 90114 },
-        { id: 5517, executedAt: minutesAgo(11), instrumentSymbol: 'NVDA@NASDAQ', side: Sides.Sell, quantity: 400, price: 118.9, order: 90113 },
-        { id: 5516, executedAt: minutesAgo(26), instrumentSymbol: 'BTC@IMEX', side: Sides.Buy, quantity: 0.25, price: 67150.0, order: 90111 },
-        { id: 5515, executedAt: minutesAgo(38), instrumentSymbol: 'XAUUSD@FX', side: Sides.Sell, quantity: 10, price: 2651.4, order: 90109 },
-        { id: 5514, executedAt: minutesAgo(52), instrumentSymbol: 'BTC@IMEX', side: Sides.Buy, quantity: 0.5, price: 66895.0, order: 90107 },
-        { id: 5513, executedAt: minutesAgo(74), instrumentSymbol: 'ETH@IMEX', side: Sides.Buy, quantity: 4, price: 3488.7, order: 90104 },
-        { id: 5512, executedAt: minutesAgo(96), instrumentSymbol: 'ETH@IMEX', side: Sides.Sell, quantity: 4, price: 3541.15, order: 90102 },
-        { id: 5511, executedAt: minutesAgo(133), instrumentSymbol: 'CLZ5@NYMEX', side: Sides.Buy, quantity: 5, price: 72.41, order: 90099 },
+        { id: 5518, executedAt: minutesAgo(4), instrumentSymbol: 'ESZ5@CME', side: Sides.Buy, quantity: 2, price: 5806.75, order: 90114 },
+        { id: 5517, executedAt: minutesAgo(11), instrumentSymbol: 'NVDA@NASDAQ', side: Sides.Sell, quantity: 400, price: 120.85, order: 90113 },
+        { id: 5516, executedAt: minutesAgo(26), instrumentSymbol: 'BTC@IMEX', side: Sides.Buy, quantity: 0.25, price: 68180.0, order: 90111 },
+        { id: 5515, executedAt: minutesAgo(38), instrumentSymbol: 'XAUUSD@FX', side: Sides.Sell, quantity: 10, price: 2652.6, order: 90109 },
+        { id: 5514, executedAt: minutesAgo(52), instrumentSymbol: 'BTC@IMEX', side: Sides.Buy, quantity: 0.5, price: 68050.0, order: 90107 },
+        { id: 5513, executedAt: minutesAgo(74), instrumentSymbol: 'ETH@IMEX', side: Sides.Buy, quantity: 4, price: 3505.4, order: 90104 },
+        { id: 5512, executedAt: minutesAgo(96), instrumentSymbol: 'ETH@IMEX', side: Sides.Sell, quantity: 4, price: 3518.9, order: 90102 },
+        { id: 5511, executedAt: minutesAgo(133), instrumentSymbol: 'CLZ5@NYMEX', side: Sides.Buy, quantity: 5, price: 71.62, order: 90099 },
+        ...backfillTrades(),
     ];
 
     // Three runs over three instruments from the universe above, one of each kind
@@ -191,7 +268,12 @@
             strategy.samples = strategy.pnl.length;
             return strategy;
         });
-        state.equity = { peak: 0, peakAt: null, drawdown: 0 };
+        // Seeded from the tape rather than starting at zero. The mark is carried as the run
+        // goes because a snapshot cannot recover a peak it has already fallen from - but the
+        // backfilled session IS a path, so walking it once gives the peak and the fall that
+        // actually happened. Without this the curve shows a run that peaked and gave it back
+        // while the statistics report a drawdown of nothing.
+        state.equity = seedEquityMark();
         state.nextTradeId = 5600;
         state.nextOrderId = 90200;
     }
@@ -1666,26 +1748,47 @@
         book.volume += Math.round(1 + Math.random() * 12);
     }
 
-    // The chain and the context it is priced against go in one call, because they are
-    // one observation: greeks solved against a spot the desk was told about separately
-    // would describe a moment that never happened.
-    function pushOptionDesk(desk) {
+    // The chain and the context it is priced against go in one call, because they are one
+    // observation: greeks solved against a spot the desk was told about separately would
+    // describe a moment that never happened. The frame is built once and handed to both option
+    // panels for the same reason - a desk and a smile quoting two different spots are quoting
+    // two different moments.
+    let chainFrame = null;
+
+    function stepChain() {
         const u = universeOf(CHAIN_SYMBOL);
         const years = Math.max(0, (CHAIN_EXPIRY - Date.now()) / YEAR_MS);
         if (!chainBrackets(u.price)) listChain(u.price);
         tradeChain(u.price);
-        desk.update(
-            chain.map(entry => ({
+        chainFrame = {
+            strikes: chain.map(entry => ({
                 strike: entry.strike,
                 call: chainSide(entry, false, u.price, years),
                 put: chainSide(entry, true, u.price, years),
             })),
-            {
+            context: {
                 assetPrice: u.price,
                 timeToExpiry: years,
                 riskFree: CHAIN_RISK_FREE,
                 dividend: CHAIN_DIVIDEND,
-            });
+            },
+        };
+        return chainFrame;
+    }
+
+    function pushOptionChain() {
+        const frame = stepChain();
+        for (const kind of [ControlTypes.OptionDesk, ControlTypes.OptionSmile]) {
+            const panel = live.get(kind);
+            if (panel) panel.update(frame.strikes, frame.context);
+        }
+    }
+
+    // A panel opened between ticks has missed the frame its neighbour is showing, so it is given
+    // that one rather than trading the chain a second time to build its own.
+    function seedOptionPanel(widget) {
+        const frame = chainFrame || stepChain();
+        widget.update(frame.strikes, frame.context);
     }
 
     function createOptionDesk(hostEl) {
@@ -1694,7 +1797,168 @@
         // and an expiry but no pricing service, so it sends the volatility each quote
         // was solved from and the desk prices delta through rho from that.
         logLine('data', `option desk: quoting ${CHAIN_SYMBOL} options in volatility - the desk computes the greeks`, ControlTypes.OptionDesk);
-        pushOptionDesk(widget);
+        seedOptionPanel(widget);
+        return widget;
+    }
+
+    // ------------------------------------------------------------------ equity
+
+    // The run's own equity, from the same replay the statistics table reads. One walk of the
+    // tape produces both, which is the point: a curve and a net-profit row that disagreed would
+    // be two answers to one question.
+    //
+    // A point per fill rather than per tick - a fill is when the number actually moved, and a
+    // tick that filled nothing draws a flat step that says nothing.
+    function equityPoints() {
+        const ledger = new Map();
+        // The last price each instrument was seen at, walking the session forward. An open
+        // position is worth what it was worth then, which is what an equity curve plots.
+        const marks = new Map();
+        const points = [];
+        let realized = 0;
+
+        for (const fill of state.trades.slice().reverse()) {
+            const quantity = Math.abs(fill.quantity);
+            const signed = isBuy(fill.side) ? quantity : -quantity;
+            let held = ledger.get(fill.instrumentSymbol);
+            if (!held) {
+                held = { quantity: 0, avgPrice: fill.price };
+                ledger.set(fill.instrumentSymbol, held);
+            }
+
+            const oldQty = held.quantity;
+            const newQty = oldQty + signed;
+            if (oldQty === 0 || Math.sign(oldQty) === Math.sign(signed)) {
+                held.avgPrice = (Math.abs(oldQty) * held.avgPrice + quantity * fill.price) / (Math.abs(oldQty) + quantity);
+            } else {
+                const closed = Math.min(Math.abs(oldQty), quantity);
+                realized += (fill.price - held.avgPrice) * closed * Math.sign(oldQty);
+                if (newQty !== 0 && Math.sign(newQty) !== Math.sign(oldQty)) held.avgPrice = fill.price;
+            }
+            held.quantity = newQty;
+
+            // Marked where the fill left the book, so the curve carries the open position too -
+            // realized alone would draw a staircase that only moves when something is closed.
+            //
+            // At the prices of that moment, not today's: marking every historical point at the
+            // current price makes each one answer a question about now, and the curve reads as
+            // noise because a position taken hours ago is scored against a price it never saw.
+            marks.set(fill.instrumentSymbol, fill.price);
+            let open = 0;
+            for (const [symbol, book] of ledger) {
+                const mark = marks.get(symbol);
+                if (mark !== undefined && book.quantity !== 0) open += (mark - book.avgPrice) * book.quantity;
+            }
+            // Milliseconds, because that is what `presentation.timeText` is handed everywhere
+            // else on this page: a number in seconds reads as a moment in 1970 and dates the
+            // axis with it.
+            points.push({ time: Date.parse(fill.executedAt), value: realized + open });
+        }
+
+        // Where the run stands now. Only the last point is marked at live prices: it is the one
+        // that answers "what is this worth", and it is why the curve keeps moving between fills.
+        if (points.length > 0) {
+            let open = 0;
+            for (const [symbol, book] of ledger) {
+                const u = universeOf(symbol);
+                if (u && book.quantity !== 0) open += (u.price - book.avgPrice) * book.quantity;
+            }
+            points.push({ time: Date.now(), value: realized + open });
+        }
+        return points;
+    }
+
+    // The high-water mark of the session already behind the page: the highest the run stood,
+    // when it stood there, and the largest fall from a peak along the way.
+    function seedEquityMark() {
+        const mark = { peak: 0, peakAt: null, drawdown: 0 };
+        for (const point of equityPoints()) {
+            if (point.value > mark.peak) {
+                mark.peak = point.value;
+                mark.peakAt = new Date(point.time).toISOString();
+            }
+            const fall = mark.peak - point.value;
+            if (fall > mark.drawdown) mark.drawdown = fall;
+        }
+        return mark;
+    }
+
+    function pushEquity() {
+        const panel = live.get(ControlTypes.Equity);
+        if (panel) panel.update(equityPoints());
+    }
+
+    function createEquity(hostEl) {
+        const widget = EquityWidget.create(hostEl, {}, { host: makeHost(ControlTypes.Equity) });
+        widget.update(equityPoints());
+        return widget;
+    }
+
+    // ------------------------------------------------------- optimisation heatmap
+
+    // A parameter sweep, as one would arrive from a run of them: two parameters varied, one
+    // metric measured at each pair. Invented here the way the chain and the strategies are -
+    // this page has no optimiser behind it - but shaped exactly as a real sweep is, so the
+    // control is fed nothing a report would not carry.
+    //
+    // The surface has a ridge rather than a single peak, because that is what a real sweep of a
+    // moving-average pair looks like: a band of settings that work and cliffs either side.
+    const SWEEP_FAST = [4, 6, 8, 10, 13, 16, 20, 25, 31, 38, 47, 58];
+    const SWEEP_SLOW = [25, 35, 48, 65, 88, 115, 150, 190, 240, 300];
+
+    function sweepCells() {
+        const cells = [];
+        for (const fast of SWEEP_FAST) {
+            for (const slow of SWEEP_SLOW) {
+                // A pair that does not separate is not a crossover at all, and a sweep would
+                // have no result for it. Left out, so the map has a gap where the runs do.
+                if (slow <= fast * 2) continue;
+                const ratio = Math.log(slow / fast);
+                const ridge = Math.exp(-Math.pow(ratio - 1.9, 2) * 1.6);
+                const cost = fast < 8 ? 0.55 : 1;
+                cells.push({
+                    x: String(fast),
+                    y: String(slow),
+                    value: Math.round((ridge * cost * 14200 - 2600) * 100) / 100,
+                });
+            }
+        }
+        return cells;
+    }
+
+    function createOptimizationHeatmap(hostEl) {
+        const widget = OptimizationHeatmapWidget.create(hostEl, {}, { host: makeHost(ControlTypes.OptimizationHeatmap) });
+        logLine('data', `optimization: ${SWEEP_FAST.length} x ${SWEEP_SLOW.length} sweep of a moving-average pair`, ControlTypes.OptimizationHeatmap);
+        widget.update({
+            xLabel: LANG.page.sweepFast,
+            yLabel: LANG.page.sweepSlow,
+            metricLabel: LANG.stats.names.NetProfit,
+            betterWhen: HeatDirections.Higher,
+            cells: sweepCells(),
+        });
+        return widget;
+    }
+
+    // The same sweep as a landscape. One set of results, two ways of reading it: the map
+    // compares cells, the surface shows the shape they make.
+    function createOptimizationSurface(hostEl) {
+        const widget = SurfaceWidget.create(hostEl, {}, { host: makeHost(ControlTypes.OptimizationSurface) });
+        widget.update({
+            xLabel: LANG.page.sweepFast,
+            yLabel: LANG.page.sweepSlow,
+            metricLabel: LANG.stats.names.NetProfit,
+            betterWhen: HeatDirections.Higher,
+            cells: sweepCells(),
+        });
+        return widget;
+    }
+
+    function createOptionSmile(hostEl) {
+        const widget = OptionSmileWidget.create(hostEl, {}, { host: makeHost(ControlTypes.OptionSmile) });
+        // The same rows the desk is given, off the same frame: the smile reads the chain the desk
+        // is tabulating, and neither is told anything the other is not.
+        logLine('data', `option smile: ${CHAIN_SYMBOL} implied volatility by strike, both sides on one scale`, ControlTypes.OptionSmile);
+        seedOptionPanel(widget);
         return widget;
     }
 
@@ -1706,6 +1970,7 @@
     // nudging one bar for five minutes.
     const CHART_TF = 10;
     const CHART_BARS = 240;
+
 
     let chartPanel = null;
 
@@ -1721,6 +1986,8 @@
             grid: token('--t-border', '#2a3546'),
             up: token('--t-green', '#26a69a'),
             down: token('--t-red', '#ef5350'),
+            accent: token('--t-accent', '#4a9eff'),
+            orange: token('--t-orange', '#e8a33d'),
             mono: token('--t-mono', 'monospace'),
         };
     }
@@ -1759,9 +2026,15 @@
         const bars = seedChartData();
         panel.candles.setData(bars.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
         panel.volume.setData(bars.map(({ time, volume }) => ({ time, value: volume })));
+
         const last = bars[bars.length - 1];
         panel.last = { time: last.time, open: last.open, high: last.high, low: last.low, close: last.close };
         panel.lastVol = { time: last.time, value: last.volume };
+        // Kept so a tick can extend it: the studies and the legend read the whole window, not
+        // just the bar that moved.
+        panel.bars = bars;
+        // One call for both, so the strip cannot end up reading the window before last.
+        panel.ui.setCandles(panel.bars);
         panel.chart.timeScale().fitContent();
     }
 
@@ -1795,7 +2068,19 @@
         });
         volume.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
 
-        const panel = { chart, candles, volume, last: null, lastVol: null };
+        // The chart's own UI layer: the crosshair legend, the right-click menu, the indicator
+        // picker and the pane chrome an oscillator lands in. One call, and none of it lives here -
+        // this page is a demo of the trading controls, and the chart beside them is the chart
+        // package's business.
+        const ui = SSChartUI.createChartUi(chart, {
+            container: wrap,
+            host: SSChartUI.standaloneHost,
+            priceSource: candles,
+            chartTypes: [],
+            storage: SSChartUI.localChartUiStorage('sstradingcontrols:demo'),
+        });
+
+        const panel = { chart, candles, volume, ui, last: null, lastVol: null };
         loadChartData(panel);
 
         // Dockview resizes the panel box; the chart is told. Through resize(),
@@ -1836,6 +2121,10 @@
         // Same time mutates the forming bar, a newer time appends the next one.
         panel.candles.update({ ...panel.last });
         panel.volume.update({ ...panel.lastVol });
+        const bar = { ...panel.last, volume: panel.lastVol.value };
+        if (panel.bars[panel.bars.length - 1].time === time) panel.bars[panel.bars.length - 1] = bar;
+        else panel.bars.push(bar);
+        panel.ui.setCandles(panel.bars);
     }
 
     function applyChartTheme() {
@@ -1848,6 +2137,12 @@
             timeScale: { borderColor: colors.grid },
         });
         chartPanel.candles.applyOptions(candleColors(colors));
+        // The sub-panes an oscillator was dropped into get the same options: the engine gives each
+        // its own chart, and a theme flip that skipped them would leave them on the old palette.
+        chartPanel.ui.paneManager.getPanes().forEach((id) => {
+            const pane = chartPanel.ui.paneManager.getChart(id);
+            if (pane) pane.applyOptions({ layout: { background: { type: 'solid', color: colors.bg }, textColor: colors.text } });
+        });
     }
 
     // ---------------------------------------------------------- host port log
@@ -1905,6 +2200,10 @@
         [ControlTypes.Statistics]: { label: 'statistics', title: () => translate('Statistics'), create: createStatistics },
         [ControlTypes.Strategies]: { label: 'strategies', title: () => translate('Strategies'), create: createStrategies },
         [ControlTypes.OptionDesk]: { label: 'option desk', title: () => translate('OptionDesk'), create: createOptionDesk },
+        [ControlTypes.OptionSmile]: { label: 'option smile', title: () => translate('OptionSmile'), create: createOptionSmile },
+        [ControlTypes.Equity]: { label: 'equity', title: () => translate('Equity'), create: createEquity },
+        [ControlTypes.OptimizationHeatmap]: { label: 'optimization', title: () => translate('OptimizationHeatmap'), create: createOptimizationHeatmap },
+        [ControlTypes.OptimizationSurface]: { label: 'optimization surface', title: () => translate('OptimizationSurface'), create: createOptimizationSurface },
         [ControlTypes.LogMonitor]: { label: 'log monitor', title: () => translate('LogMonitor'), create: createLogMonitor },
         hostlog: { label: 'host log', title: () => LANG.page.hostLog, create: createHostLog, lift: ['.hostlog-actions'] },
     };
@@ -2026,38 +2325,48 @@
     // The same breakpoint the terminal (and this page's `maxDepth` dep) tests.
     const MOBILE_BREAKPOINT = window.matchMedia('(max-width: 768px)');
 
-    // The phone board: one column, every panel under the previous, the page
-    // scrolls. Order and height per row — the pad and the ladder need more room
-    // than a blotter.
-    const MOBILE_ROWS = [
-        ['chart', 340],
-        [ControlTypes.OrderBook, 400],
-        [ControlTypes.OrderEntry, 440],
-        [ControlTypes.TradeFeed, 360],
-        [ControlTypes.Watchlist, 400],
-        [ControlTypes.ActiveOrders, 300],
-        [ControlTypes.TradeHistory, 300],
-        [ControlTypes.Positions, 300],
-        [ControlTypes.Statistics, 340],
-        [ControlTypes.Strategies, 300],
-        [ControlTypes.OptionDesk, 340],
-        [ControlTypes.LogMonitor, 360],
-        ['hostlog', 300],
-    ];
+    // Which board this page is. One page with every panel on it made a trading screen that
+    // also optimised strategies and monitored a log - three jobs no one screen has, and a
+    // reader looking for the ladder had to find it among fifteen tabs. So the demo is three
+    // pages over one set of data: the panels, the host and the tape are shared, and a board
+    // decides only which panels are on it and where.
+    const BOARD = dockEl.dataset.board || 'terminal';
 
-    // The terminal's default board: chart on the left, the tape and the ladder
-    // to its right, the watchlist under the ladder, the order pad and the
-    // blotters (tabbed) along the bottom. On a phone — the single column above.
-    function buildDefaultLayout() {
-        if (MOBILE_BREAKPOINT.matches) {
-            buildMobileLayout();
-            return;
-        }
+    // The phone board, per board: one column, every panel under the previous, the page scrolls.
+    // Order and height per row - the pad and the ladder need more room than a blotter.
+    const MOBILE_BOARDS = {
+        terminal: [
+            ['chart', 340],
+            [ControlTypes.OrderBook, 400],
+            [ControlTypes.OrderEntry, 440],
+            [ControlTypes.TradeFeed, 360],
+            [ControlTypes.Watchlist, 400],
+            [ControlTypes.ActiveOrders, 300],
+            [ControlTypes.TradeHistory, 300],
+            [ControlTypes.Positions, 300],
+            [ControlTypes.OptionDesk, 340],
+            [ControlTypes.OptionSmile, 300],
+            ['hostlog', 300],
+        ],
+        strategies: [
+            [ControlTypes.Strategies, 320],
+            [ControlTypes.Equity, 320],
+            [ControlTypes.Statistics, 380],
+            [ControlTypes.LogMonitor, 360],
+            ['hostlog', 300],
+        ],
+        optimization: [
+            [ControlTypes.OptimizationHeatmap, 380],
+            [ControlTypes.OptimizationSurface, 380],
+            ['hostlog', 300],
+        ],
+    };
 
-        // The dock's height is the CSS rule's business again after a mobile
-        // build pinned it.
-        dockEl.style.height = '';
+    const MOBILE_ROWS = MOBILE_BOARDS[BOARD] || MOBILE_BOARDS.terminal;
 
+    // The trading screen: chart on the left, the tape and the ladder to its right, the
+    // watchlist under the ladder, the order pad and the blotters (tabbed) along the bottom.
+    function buildTerminalBoard() {
         addDockPanel('chart', null);
         addDockPanel(ControlTypes.OrderEntry, { referencePanel: 'chart', direction: 'below' }, { initialHeight: 260 });
         addDockPanel(ControlTypes.TradeFeed, { referencePanel: 'chart', direction: 'right' }, { initialWidth: 280 });
@@ -2066,18 +2375,57 @@
         addDockPanel(ControlTypes.ActiveOrders, { referencePanel: ControlTypes.OrderEntry, direction: 'right' });
         addDockPanel(ControlTypes.TradeHistory, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
         addDockPanel(ControlTypes.Positions, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
-        addDockPanel(ControlTypes.Statistics, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
-        addDockPanel(ControlTypes.Strategies, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
         addDockPanel(ControlTypes.OptionDesk, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
-        addDockPanel(ControlTypes.LogMonitor, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
+        addDockPanel(ControlTypes.OptionSmile, { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
         addDockPanel('hostlog', { referencePanel: ControlTypes.ActiveOrders, direction: 'within' });
 
         const orders = dockApi.getPanel(ControlTypes.ActiveOrders);
         if (orders) orders.api.setActive();
+    }
 
-        // initialWidth/initialHeight are advisory while the tree is being
-        // built; the real proportions are pushed once dockview has laid out —
-        // the same double-rAF the terminal uses.
+    // What a running strategy looks like: the dashboard across the top, its equity and its
+    // statistics under it, and what it said in the log beside them. Nothing here is a place to
+    // trade from - that is the terminal board.
+    function buildStrategiesBoard() {
+        addDockPanel(ControlTypes.Strategies, null);
+        addDockPanel(ControlTypes.Equity, { referencePanel: ControlTypes.Strategies, direction: 'below' }, { initialHeight: 420 });
+        addDockPanel(ControlTypes.Statistics, { referencePanel: ControlTypes.Equity, direction: 'right' }, { initialWidth: 460 });
+        addDockPanel(ControlTypes.LogMonitor, { referencePanel: ControlTypes.Statistics, direction: 'right' }, { initialWidth: 560 });
+        addDockPanel('hostlog', { referencePanel: ControlTypes.LogMonitor, direction: 'within' });
+
+        const monitor = dockApi.getPanel(ControlTypes.LogMonitor);
+        if (monitor) monitor.api.setActive();
+    }
+
+    // One sweep, two readings: the map compares pairs, the landscape shows the shape they make.
+    // Side by side on purpose - they are the same numbers, and the point is that neither answers
+    // the other's question.
+    function buildOptimizationBoard() {
+        addDockPanel(ControlTypes.OptimizationHeatmap, null);
+        addDockPanel(ControlTypes.OptimizationSurface, { referencePanel: ControlTypes.OptimizationHeatmap, direction: 'right' });
+        addDockPanel('hostlog', { referencePanel: ControlTypes.OptimizationHeatmap, direction: 'below' }, { initialHeight: 200 });
+    }
+
+    const DESKTOP_BOARDS = {
+        terminal: buildTerminalBoard,
+        strategies: buildStrategiesBoard,
+        optimization: buildOptimizationBoard,
+    };
+
+    function buildDefaultLayout() {
+        if (MOBILE_BREAKPOINT.matches) {
+            buildMobileLayout();
+            return;
+        }
+
+        // The dock's height is the CSS rule's business again after a mobile build pinned it.
+        dockEl.style.height = '';
+
+        (DESKTOP_BOARDS[BOARD] || buildTerminalBoard)();
+
+        // initialWidth/initialHeight are advisory while the tree is being built; the real
+        // proportions are pushed once dockview has laid out - the same double-rAF the terminal
+        // uses.
         requestAnimationFrame(() => requestAnimationFrame(applyRatios));
     }
 
@@ -2103,6 +2451,9 @@
         }));
     }
 
+    // What dockview splits evenly is rarely what a board wants, so each says its own proportions
+    // once the tree has been laid out. Shares of the board rather than pixels: the same page is
+    // opened on a laptop and on a wall.
     function applyRatios() {
         if (!dockApi) return;
         const width = dockEl.clientWidth || 1440;
@@ -2111,17 +2462,34 @@
             const panel = dockApi.getPanel(kind);
             if (panel && panel.group) panel.group.api.setSize(box);
         };
+
+        if (BOARD === 'strategies') {
+            // The dashboard is a handful of rows however many strategies there are; the three
+            // panels under it are the ones a reader dwells on.
+            setSize(ControlTypes.Strategies, { height: Math.max(200, Math.floor(height * 0.30)) });
+            setSize(ControlTypes.Equity, { width: Math.floor(width * 0.34) });
+            setSize(ControlTypes.Statistics, { width: Math.floor(width * 0.28) });
+            return;
+        }
+
+        if (BOARD === 'optimization') {
+            // Half each to the two readings of the sweep. The log is a strip under them: it is
+            // here to show the port traffic, not to be read alongside a landscape.
+            setSize(ControlTypes.OptimizationHeatmap, { width: Math.floor(width * 0.46) });
+            setSize('hostlog', { height: 180 });
+            return;
+        }
+
         setSize('chart', { width: Math.floor(width * 0.50) });
         setSize(ControlTypes.TradeFeed, { width: Math.floor(width * 0.22) });
         setSize(ControlTypes.OrderBook, { width: Math.floor(width * 0.28) });
-        // The bottom row is the order pad beside the tabbed panels, and eight tabs share
-        // it: a statistics table of twenty-four rows and an option chain of eleven strikes
-        // both need more than the pad's own 260px, so the row takes a share of the board
-        // and the pad's height is the floor rather than the figure.
+        // The bottom row is the order pad beside the tabbed blotters. An option chain of eleven
+        // strikes needs more than the pad's own 260px, so the row takes a share of the board and
+        // the pad's height is the floor rather than the figure.
         const bottom = Math.max(260, Math.floor(height * 0.38));
         setSize(ControlTypes.OrderEntry, { height: bottom });
-        // The right column splits between the ladder and the watchlist; the
-        // ladder gets the larger share — ten levels a side need the room.
+        // The right column splits between the ladder and the watchlist; the ladder gets the
+        // larger share - ten levels a side need the room.
         setSize(ControlTypes.Watchlist, { height: Math.floor((height - bottom) * 0.42) });
     }
 
@@ -2177,14 +2545,14 @@
         }
         pushStrategies();
 
-        const desk = live.get(ControlTypes.OptionDesk);
-        if (desk) pushOptionDesk(desk);
+        pushOptionChain();
 
         for (const order of Array.from(state.orders)) checkFill(order);
 
         // Prices moved, so the open positions are worth something else even on a tick
         // that filled nothing.
         pushStatistics();
+        pushEquity();
     }
 
     let autoTimer = null;
@@ -2216,6 +2584,11 @@
         document.getElementById('themeBtn').textContent = light ? LANG.page.themeDark : LANG.page.themeLight;
         document.getElementById('langBtn').textContent = LANG.switchTo;
         document.querySelector('.demo-statusbar .status-left').textContent = LANG.page.statusLeft;
+        for (const link of document.querySelectorAll('[data-board-link]')) {
+            const board = link.dataset.boardLink;
+            link.textContent = LANG.page.boards[board] || board;
+            link.classList.toggle('is-current', board === BOARD);
+        }
     }
 
     resetState();
@@ -2244,9 +2617,10 @@
         if (history) void history.refresh();
         pushStrategies();
         pushStatistics();
+        pushEquity();
         chain = [];
-        const desk = live.get(ControlTypes.OptionDesk);
-        if (desk) pushOptionDesk(desk);
+        chainFrame = null;
+        pushOptionChain();
         // The books are rebuilt around the restored prices, and each ladder is
         // told so the only way it ever is: with a snapshot.
         books.clear();

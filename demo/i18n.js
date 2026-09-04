@@ -265,6 +265,23 @@
             'Vega': 'Vega',
             'Theta': 'Theta',
             'Rho': 'Rho',
+
+            // The option smile.
+            'OptionSmile': 'Option smile',
+            'ImpliedVolatility': 'Implied volatility',
+            'Underlying': 'Underlying',
+
+            // The equity panel and the optimisation heatmap.
+            'Equity': 'Equity',
+            'NoEquity': 'Nothing traded yet',
+            'OptimizationHeatmap': 'Optimization',
+            'OptimizationHeatmapChart': 'Metric by two parameters',
+            'NoOptimizationResults': 'No optimization results',
+            'Runs': 'Runs',
+            'Best': 'Best',
+            'OptimizationSurface': 'Optimization surface',
+            'OptimizationSurfaceChart': 'Metric as a landscape over two parameters',
+            'ResetView': 'Reset the view',
         },
 
         // The host's presentation wording — what the port's `presentation`
@@ -349,6 +366,11 @@
             chart: 'Chart',
             hostLog: 'Host port traffic',
             hostSource: 'Demo host',
+            // The three boards this demo is. One page carrying every panel made a trading
+            // screen that also optimised strategies, which is not a screen anyone has.
+            boards: { terminal: 'Terminal', strategies: 'Strategies', optimization: 'Optimization' },
+            sweepFast: 'Fast MA',
+            sweepSlow: 'Slow MA',
             hostLogNote: 'every line is a call a control made into the demo host',
             clearLog: 'Clear',
             statusLeft: 'demo host · no server, no network',
@@ -605,6 +627,23 @@
             'Vega': 'Vega',
             'Theta': 'Theta',
             'Rho': 'Rho',
+
+            // The option smile.
+            'OptionSmile': '波动率微笑',
+            'ImpliedVolatility': '隐含波动率',
+            'Underlying': '标的',
+
+            // The equity panel and the optimisation heatmap.
+            'Equity': '权益',
+            'NoEquity': '尚未交易',
+            'OptimizationHeatmap': '参数优化',
+            'OptimizationHeatmapChart': '按两个参数的指标',
+            'NoOptimizationResults': '暂无优化结果',
+            'Runs': '运行次数',
+            'Best': '最优',
+            'OptimizationSurface': '优化曲面',
+            'OptimizationSurfaceChart': '两个参数上的指标曲面',
+            'ResetView': '重置视角',
         },
 
         side: { buy: '买入', sell: '卖出' },

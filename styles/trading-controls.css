@@ -1734,3 +1734,284 @@
 .terminal-panel::-webkit-scrollbar-corner {
     background: transparent;
 }
+
+/* ---- Option smile ------------------------------------------------------- */
+
+.option-smile-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 4px 10px;
+    font-size: 10px;
+    color: var(--t-text-dim);
+    border-bottom: 1px solid var(--t-border);
+    flex-shrink: 0;
+}
+
+/* What the vertical axis measures, said once in words; the gutter down the chart carries only the
+   numbers. */
+.option-smile-axis {
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.option-smile-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.option-smile-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* The same pair the desk tells the two sides apart by, so the legend agrees with the curves the
+   host's canvas palette draws. */
+.option-smile-dot-call { background: var(--t-green); }
+.option-smile-dot-put { background: var(--t-red); }
+
+/* At the far end of the row: a reading of the market, not a key to the chart. */
+.option-smile-spot { margin-left: auto; }
+
+/* ---- Equity ------------------------------------------------------------- */
+
+/* The figure the run ended at, beside the panel's name rather than adrift between it and the
+   close button - the auto margin is what puts the header's slack on the right. Mono and
+   unspaced, because it is a number in a strip of captions; its colour arrives as the host's
+   own `pnl-positive` / `pnl-negative`. */
+.equity-last {
+    margin-right: auto;
+    padding-left: 8px;
+    font-family: var(--t-mono);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--t-text);
+}
+
+/* ---------------------------------------------------- optimisation heatmap */
+
+/* The panel is the tooltip's containing block: the tooltip is placed in canvas
+   coordinates and would otherwise anchor to the page. */
+.optimization-heatmap-panel {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* What the colours mean, beside the panel's own name. It captions the legend
+   the control draws on the canvas, and living in the chrome costs the map no
+   pixels and leaves the text selectable. */
+.heatmap-metric {
+    margin-left: auto;
+    margin-right: 8px;
+    color: var(--t-text-bright);
+    letter-spacing: 0.4px;
+}
+
+/* The map fills the body, so the body stops scrolling and becomes a column:
+   a canvas that grows to fit inside a box that grows to fit it never settles. */
+.optimization-heatmap-panel > .panel-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 6px 8px 4px;
+}
+
+/* Takes whatever height the panel has left; the control sizes its backing
+   store to the device's pixels. */
+.heatmap-canvas {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    display: block;
+}
+
+.heatmap-empty {
+    padding: 24px 0;
+    text-align: center;
+    color: var(--t-text-dim);
+    font-family: var(--t-font);
+    font-size: 11px;
+}
+
+.heatmap-empty[hidden] { display: none; }
+
+/* Placed by the control in canvas coordinates, which is why this is the one
+   rule here carrying a `left` / `top` it does not declare. */
+.heatmap-tooltip {
+    position: absolute;
+    z-index: 20;
+    min-width: 140px;
+    padding: 6px 8px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    font-family: var(--t-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--t-text-bright);
+    pointer-events: none;
+}
+
+.heatmap-tooltip[hidden] { display: none; }
+.heatmap-tt-row { display: flex; justify-content: space-between; gap: 12px; }
+.heatmap-tt-label { color: var(--t-text-dim); }
+.heatmap-tt-value { font-weight: 600; }
+
+/* The one row that is a statement rather than a pair. */
+.heatmap-tt-best {
+    justify-content: center;
+    margin-top: 2px;
+    padding-top: 2px;
+    border-top: 1px solid var(--t-border);
+    color: var(--t-accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+/* A phone has no cursor, so the panel's only way of reading a figure off the
+   map is gone. The tooltip goes with it rather than sticking where a tap left
+   it, and the metric caption keeps the header from wrapping. */
+@media (max-width: 768px) {
+    .optimization-heatmap-panel .heatmap-tooltip { display: none; }
+    .heatmap-metric { display: none; }
+}
+
+/* ---- Optimisation surface ------------------------------------------------ */
+
+/* The chart takes the whole body. `overflow: hidden` rather than the `auto` a panel body carries
+   by default: the canvas is sized to the box it is given, so a scrollbar here would be a box the
+   canvas then resized itself out of. */
+.terminal-panel.surface-panel > .panel-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.surface-chart {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 120px;
+}
+
+/* `touch-action: none` is what makes the surface turn under a thumb. Without it the browser
+   claims the gesture for scrolling the page before the first pointermove ever arrives, and a
+   drag on a phone moves the page instead of the landscape. */
+.surface-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: grab;
+}
+
+.surface-canvas:active { cursor: grabbing; }
+
+/* What the landscape is of, beside the panel's name. */
+.surface-metric {
+    margin-left: auto;
+    margin-right: .4rem;
+    color: var(--t-text-bright);
+    font-variant-numeric: tabular-nums;
+}
+
+.surface-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--t-text-dim);
+}
+
+/* The one button in the header that is not a close: it puts the view back where it started,
+   which is the way out of a rotation a reader has lost their bearings in. */
+.surface-reset-btn { margin-right: .2rem; }
+
+/* The `hidden` attribute is nothing but `display: none` in the browser's own stylesheet, so any
+   display of ours beats it - and a panel that gives an element `display: flex` and then hides it
+   by attribute shows it regardless. Every control here hides something that way: the empty
+   message a chart shows in place of itself, a legend with nothing to list. Scoped to this
+   package's panels, so a host's own hidden elements keep whatever rules the host gave them. */
+.terminal-panel [hidden] { display: none !important; }
+
+/* A drag on a chart turns it; without this the same drag paints a text selection across the
+   panel, and the selection stays behind when the pointer goes up. */
+.surface-chart { user-select: none; -webkit-user-select: none; }
+
+/* What the pointer is over, beside the run's own figure. Dim until there is something to say,
+   so the header does not jump between two widths as the pointer enters and leaves the curve. */
+
+/* What the pointer is over, in the smile's legend: the strike and both sides at it. Pushed to
+   the end of the row so the key stays where it was when the readout appears and disappears. */
+/* ---- What the pointer is over ---------------------------------------------- */
+
+/* The three panels that draw a chart answer for the point under the pointer, and the answer sits
+   over the chart rather than in the panel header. Two reasons, and the second is the one that
+   caught us: a reading about a point belongs beside that point, and a host is free to lift a panel
+   header into a tab strip - which put the smile's strike and volatilities into a tab title.
+
+   `pointer-events: none` so the strip never swallows a drag meant for the chart under it. */
+.equity-hover,
+.option-smile-hover,
+.surface-readout {
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    z-index: 2;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: 11px;
+    text-shadow: 0 0 3px var(--t-panel);
+}
+
+.equity-hover { color: var(--t-text-dim); }
+.option-smile-hover { color: var(--t-text-bright); }
+.surface-readout { color: var(--t-text-bright); }
+
+/* ---- The two chart panels ------------------------------------------------ */
+
+/* Both hold @stocksharp/chart rather than a canvas of their own, so the container is what the
+   engine measures: it needs a definite size, and `position: relative` so the message that stands
+   in for an empty chart can sit over it. The body does not scroll: the engine sizes itself to the
+   box it is given, so a scrollbar here would be a box it then resized itself out of. */
+.equity-chart,
+.option-smile-chart {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 120px;
+    min-width: 0;
+}
+
+.terminal-panel.equity-panel > .panel-body,
+.terminal-panel.option-smile-panel > .panel-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Over the chart rather than in the flow, so an empty run does not change the box the engine
+   was given to measure. */
+.equity-empty,
+.option-smile-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--t-text-dim);
+    pointer-events: none;
+}
+
+/* The way back out of a zoom. A reader who has looked closely at one stretch needs one gesture
+   to see the whole run again, and hunting the double-click is not it. */
+.equity-reset-btn,
+.option-smile-reset-btn { margin-right: .2rem; }

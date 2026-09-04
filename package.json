@@ -101,6 +101,22 @@
       "types": "./dist/types/option-desk-widget.d.ts",
       "import": "./dist/esm/option-desk-widget.js"
     },
+    "./option-smile-widget": {
+      "types": "./dist/types/option-smile-widget.d.ts",
+      "import": "./dist/esm/option-smile-widget.js"
+    },
+    "./equity-widget": {
+      "types": "./dist/types/equity-widget.d.ts",
+      "import": "./dist/esm/equity-widget.js"
+    },
+    "./optimization-heatmap-widget": {
+      "types": "./dist/types/optimization-heatmap-widget.d.ts",
+      "import": "./dist/esm/optimization-heatmap-widget.js"
+    },
+    "./surface-widget": {
+      "types": "./dist/types/surface-widget.d.ts",
+      "import": "./dist/esm/surface-widget.js"
+    },
     "./trading-data": {
       "types": "./dist/types/trading-data.d.ts",
       "import": "./dist/esm/trading-data.js"
@@ -121,6 +137,13 @@
     "./source/strategies-widget": "./src/strategies-widget.ts",
     "./source/log-monitor-widget": "./src/log-monitor-widget.ts",
     "./source/option-desk-widget": "./src/option-desk-widget.ts",
+    "./source/option-smile-widget": "./src/option-smile-widget.ts",
+    "./source/chart-engine": "./src/chart-engine.ts",
+    "./source/equity-widget": "./src/equity-widget.ts",
+    "./source/optimization-heatmap-widget": "./src/optimization-heatmap-widget.ts",
+    "./source/heatmap-grid": "./src/heatmap-grid.ts",
+    "./source/surface-widget": "./src/surface-widget.ts",
+    "./source/surface-grid": "./src/surface-grid.ts",
     "./source/trading-data": "./src/trading-data.ts",
     "./styles.css": "./styles/trading-controls.css",
     "./theme.css": "./styles/theme.css",
@@ -164,10 +187,13 @@
     "@stocksharp/grids": "^1.2.1"
   },
   "devDependencies": {
-    "@stocksharp/chart": "^0.2.3",
+    "@stocksharp/chart": "^2.4.0",
     "@types/node": "^24.0.0",
     "dockview-core": "^6.6.1",
     "esbuild": "^0.25.0",
     "typescript": "^5.8.0"
+  },
+  "peerDependencies": {
+    "@stocksharp/chart": "^2.1.0"
   }
 }

@@ -28,11 +28,33 @@ await build({
     outfile: join(dist, 'sstradingcontrols.js'),
     globalName: 'SSTradingControls',
     bundle: true,
+    plugins: [chartEngineOffTheGlobal()],
     format: 'iife',
     sourcemap: true,
     target: 'es2020',
     logLevel: 'info',
 });
+
+/// Point `./chart-engine.js` at the copy that reads the engine off the global.
+///
+/// The chart engine is a peer dependency, and a browser bundle that inlined it would put a
+/// second copy of it on any page that also loads `sschart.js` — a megabyte twice over, and two
+/// registries of series definitions that do not recognise each other's, so a series added
+/// through one engine is invisible to the other. This build resolves the specifier to
+/// `chart-engine.global.ts`, which reads the engine off the global that bundle publishes.
+///
+/// A plugin rather than esbuild's `alias`: that option takes package specifiers, and this is a
+/// relative path within our own sources.
+function chartEngineOffTheGlobal() {
+    return {
+        name: 'chart-engine-off-the-global',
+        setup(build) {
+            build.onResolve({ filter: /^\.\/chart-engine\.js$/ }, () => ({
+                path: join(here, 'src', 'chart-engine.global.ts'),
+            }));
+        },
+    };
+}
 
 /// Move the emitted files — and only them — onto `@stocksharp/grids`'s BUILT
 /// entry points.

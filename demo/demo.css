@@ -352,6 +352,31 @@ body {
     position: relative;
 }
 
+/* Over the chart in its top-left corner, the way every terminal puts one. `pointer-events: none`
+   because the legend sits inside the plot: without it the row would swallow the drag that pans
+   the chart under it. */
+.chart-legend {
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-family: var(--t-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    pointer-events: none;
+    text-shadow: 0 0 3px var(--t-panel);
+}
+
+.chart-legend-name { color: var(--t-text); }
+.chart-legend-dim { color: var(--t-text-dim); }
+.chart-legend-up { color: var(--t-green); }
+.chart-legend-down { color: var(--t-red); }
+.chart-legend-fast { color: var(--t-accent); }
+.chart-legend-slow { color: var(--t-orange); }
+
 /* ---------------------------------------------------------------- host log */
 
 /* The port-traffic log is a dockview panel like everything else; its Clear
@@ -481,3 +506,35 @@ body {
 }
 
 .picker-dismiss { margin-top: 8px; align-self: flex-end; }
+
+/* ------------------------------------------------------------------- board nav */
+
+/* Three boards over one set of data. The demo used to be one page carrying every panel, which
+   made a trading screen that also optimised strategies - so a reader looking for the ladder had
+   to find it among fifteen tabs. */
+.demo-nav {
+    display: flex;
+    gap: 2px;
+    margin-left: 14px;
+}
+
+.demo-nav a {
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--t-text-dim);
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+
+.demo-nav a:hover {
+    color: var(--t-text-bright);
+    background: var(--t-hover);
+}
+
+/* The board you are on, marked by the page rather than by the link being visited. */
+.demo-nav a.is-current {
+    color: var(--t-text-bright);
+    border-color: var(--t-border);
+    background: var(--t-hover);
+}

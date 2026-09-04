@@ -88,6 +88,10 @@ export declare function premium(type: OptionType, inputs: OptionInputs): number;
 export declare function greeks(type: OptionType, inputs: OptionInputs): Greeks;
 export declare function impliedVolatility(type: OptionType, inputs: OptionInputs, price: number): number | null;
 
+// FILE: chart-engine.d.ts
+export { AreaSeries, CrosshairMode, LineSeries, createChart, } from '@stocksharp/chart';
+export type { AreaData, CrosshairEvent, IChartApi, ISeriesApi, LineData, SeriesOptions, Time, } from '@stocksharp/chart';
+
 // FILE: control-types.d.ts
 export declare const ControlTypes: {
     readonly Watchlist: "watchlist";
@@ -101,6 +105,10 @@ export declare const ControlTypes: {
     readonly LogMonitor: "logMonitor";
     readonly Strategies: "strategies";
     readonly OptionDesk: "optionDesk";
+    readonly OptionSmile: "optionSmile";
+    readonly Equity: "equity";
+    readonly OptimizationHeatmap: "optimizationHeatmap";
+    readonly OptimizationSurface: "optimizationSurface";
 };
 export type ControlType = typeof ControlTypes[keyof typeof ControlTypes];
 
@@ -110,6 +118,41 @@ export declare function makeIcon(iconClass: string): HTMLElement;
 export declare function makeIconButton(className: string, label: string, iconClass: string, attrs: Record<string, string>): HTMLButtonElement;
 export declare function makePanelRoot(modifierClass: string, label: string, children: Array<Node | string>): HTMLElement;
 export declare function makePanelId(type: string): string;
+
+// FILE: equity-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import { type PnlPoint } from './pnl-curve.js';
+import { type AreaData, type CrosshairEvent, type IChartApi, type ISeriesApi } from './chart-engine.js';
+export interface EquityDeps {
+    host: TradingHost;
+}
+export declare class EquityWidget {
+    static TYPE: "equity";
+    rootEl: HTMLElement;
+    _host: TradingHost;
+    _closeBtn: HTMLElement | null;
+    _resetBtn: HTMLElement | null;
+    _lastEl: HTMLElement | null;
+    _hoverEl: HTMLElement | null;
+    _emptyEl: HTMLElement | null;
+    _chartEl: HTMLElement | null;
+    _chart: IChartApi | null;
+    _series: ISeriesApi<AreaData> | null;
+    _points: PnlPoint[];
+    _resizeObserver: ResizeObserver | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: EquityDeps): EquityWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: EquityDeps);
+    dispose(): void;
+    update(points: PnlPoint[]): void;
+    resetZoom(): void;
+    chart(): IChartApi | null;
+    _ensureChart(): boolean;
+    _render(): void;
+    _fit(): void;
+    _renderLast(value: number | null): void;
+    _renderHover(param: CrosshairEvent): void;
+}
 
 // FILE: formatters.d.ts
 type Numeric = number | string | null | undefined;
@@ -124,6 +167,95 @@ export {};
 import { TradingHost } from './trading-host.js';
 import type { GridMenuOptions } from '@stocksharp/grids/source/data-grid';
 export declare function makeGridMenu<TRow>(host: TradingHost): GridMenuOptions<TRow>;
+
+// FILE: heatmap-grid.d.ts
+export declare const HeatDirections: {
+    readonly Higher: "higher";
+    readonly Lower: "lower";
+};
+export type HeatDirection = typeof HeatDirections[keyof typeof HeatDirections];
+export interface HeatCell {
+    x: string;
+    y: string;
+    value: number;
+}
+export interface HeatBucket {
+    x: string;
+    y: string;
+    value: number;
+    count: number;
+}
+export interface HeatRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+export interface HeatScale {
+    anchor: number;
+    reach: number;
+    min: number;
+    max: number;
+}
+export interface HeatCellShape {
+    bucket: HeatBucket;
+    rect: HeatRect;
+    tint: number;
+    best: boolean;
+}
+export interface HeatGapShape {
+    x: string;
+    y: string;
+    rect: HeatRect;
+}
+export interface HeatLabel {
+    text: string;
+    x: number;
+    y: number;
+}
+export interface HeatMark {
+    value: number;
+    x: number;
+    y: number;
+}
+export interface HeatLegendStep {
+    rect: HeatRect;
+    tint: number;
+}
+export interface HeatLegend {
+    steps: HeatLegendStep[];
+    low: HeatMark;
+    anchor: HeatMark;
+    high: HeatMark;
+}
+export interface HeatLayoutInput {
+    width: number;
+    height: number;
+    cells: readonly HeatCell[];
+    betterWhen: HeatDirection;
+    xLabel: string;
+    yLabel: string;
+}
+export interface HeatLayout {
+    plot: HeatRect;
+    columns: string[];
+    rows: string[];
+    cells: HeatCellShape[];
+    gaps: HeatGapShape[];
+    xTicks: HeatLabel[];
+    yTicks: HeatLabel[];
+    xTitle: HeatLabel;
+    yTitle: HeatLabel;
+    legend: HeatLegend;
+    scale: HeatScale;
+}
+export declare function foldCells(cells: readonly HeatCell[]): HeatBucket[];
+export declare function axisValues(values: readonly string[]): string[];
+export declare function heatScale(buckets: readonly HeatBucket[]): HeatScale;
+export declare function tintOf(value: number, scale: HeatScale, betterWhen: HeatDirection): number;
+export declare function valueAt(tint: number, scale: HeatScale, betterWhen: HeatDirection): number;
+export declare function layoutHeatmap(input: HeatLayoutInput): HeatLayout | null;
+export declare function hitHeatmap(layout: HeatLayout, x: number, y: number): HeatCellShape | null;
 
 // FILE: index.d.ts
 export { MarketDataLevels, PRESENTATION_CLASSES, assertHost } from './trading-host.js';
@@ -149,8 +281,23 @@ export type { OrderBookDeps, OrderBookView } from './orderbook-widget.js';
 export type { BookLevel, OrderBookFrame, QuoteLevel } from './trading-data.js';
 export type { CanvasPalette } from './trading-host.js';
 export { compressPnl, drawPnlCurve, pnlCurve } from './pnl-curve.js';
+export { EquityWidget } from './equity-widget.js';
+export type { EquityDeps } from './equity-widget.js';
+export { AreaSeries, CrosshairMode, LineSeries, createChart } from './chart-engine.js';
+export type { IChartApi, ISeriesApi } from './chart-engine.js';
+export { OptimizationHeatmapWidget } from './optimization-heatmap-widget.js';
+export type { OptimizationHeatmapDeps } from './optimization-heatmap-widget.js';
+export { HeatDirections, heatScale, hitHeatmap, layoutHeatmap, tintOf, valueAt } from './heatmap-grid.js';
+export { SurfaceWidget } from './surface-widget.js';
+export type { SurfaceData, SurfaceDeps } from './surface-widget.js';
+export { DEFAULT_VIEW, MAX_PITCH, MIN_PITCH, clampView, dragView, project, surfaceLayout, zoomView, } from './surface-grid.js';
+export type { SurfaceAxis, SurfaceBox, SurfaceInput, SurfaceLayout, SurfaceQuad, SurfaceView } from './surface-grid.js';
+export type { HeatBucket, HeatCell, HeatCellShape, HeatDirection, HeatGapShape, HeatLabel, HeatLayout, HeatLayoutInput, HeatLegend, HeatLegendStep, HeatMark, HeatRect, HeatScale, } from './heatmap-grid.js';
 export type { PnlBox, PnlCurve, PnlCurveContext, PnlCurveStyle, PnlPoint } from './pnl-curve.js';
 export { OptionDeskWidget, greekPlaces, greekScales, scaleChain, sideGreeks } from './option-desk-widget.js';
+export { OptionSmileWidget } from './option-smile-widget.js';
+export type { OptionSmileDeps } from './option-smile-widget.js';
+export { sideVolatility, sortedChain, toSmileSeries } from './option-smile-widget.js';
 export type { OptionChainContext, OptionDeskDeps, OptionSide, OptionStrike } from './option-desk-widget.js';
 export { OptionTypes, d1, d2, greeks, impliedVolatility, normalCdf, normalPdf, premium } from './black-scholes.js';
 export type { Greeks, OptionInputs, OptionType } from './black-scholes.js';
@@ -248,6 +395,52 @@ export interface LogView {
 }
 export declare function keepLog(message: LogMessageRow, view: LogView): boolean;
 
+// FILE: optimization-heatmap-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import type { HeatCell, HeatCellShape, HeatDirection, HeatLayout, HeatRect } from './heatmap-grid.js';
+export interface HeatmapData {
+    xLabel: string;
+    yLabel: string;
+    metricLabel: string;
+    betterWhen: HeatDirection;
+    cells: HeatCell[];
+}
+export interface OptimizationHeatmapDeps {
+    host: TradingHost;
+}
+export declare class OptimizationHeatmapWidget {
+    static TYPE: "optimizationHeatmap";
+    rootEl: HTMLElement;
+    canvasEl: HTMLCanvasElement | null;
+    _host: TradingHost;
+    _metricEl: HTMLElement | null;
+    _emptyEl: HTMLElement | null;
+    _tooltipEl: HTMLElement | null;
+    _closeBtn: HTMLElement | null;
+    _ctx: CanvasRenderingContext2D | null;
+    _data: HeatmapData | null;
+    _layout: HeatLayout | null;
+    _size: {
+        width: number;
+        height: number;
+    } | null;
+    _resizeObserver: ResizeObserver | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OptimizationHeatmapDeps): OptimizationHeatmapWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: OptimizationHeatmapDeps);
+    dispose(): void;
+    update(data: HeatmapData): void;
+    _sizeCanvas(): void;
+    _render(): void;
+    _paintTint(ctx: CanvasRenderingContext2D, rect: HeatRect, tint: number, ground: string, up: string, down: string): void;
+    static _outline(ctx: CanvasRenderingContext2D, rect: HeatRect, inset: number): void;
+    _setEmpty(empty: boolean): void;
+    _bindHover(): void;
+    _showTooltip(shape: HeatCellShape, x: number, y: number): void;
+    _tooltipLine(label: string, value: string): HTMLElement;
+    _hideTooltip(): void;
+}
+
 // FILE: option-desk-widget.d.ts
 import { TradingHost } from './trading-host.js';
 import { type Greeks } from './black-scholes.js';
@@ -316,6 +509,46 @@ export declare function sideGreeks(row: OptionStrike, which: 'call' | 'put', con
 export declare function greekPlaces(values: readonly (number | null | undefined)[]): number;
 export declare function greekScales(rows: readonly OptionStrike[], context: OptionChainContext): Record<keyof Greeks, number>;
 export {};
+
+// FILE: option-smile-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import type { OptionChainContext, OptionSide, OptionStrike } from './option-desk-widget.js';
+import { type CrosshairEvent, type IChartApi, type ISeriesApi, type LineData } from './chart-engine.js';
+export interface OptionSmileDeps {
+    host: TradingHost;
+}
+export declare function sideVolatility(side: OptionSide | undefined): number | null;
+export declare function sortedChain(strikes: readonly OptionStrike[]): OptionStrike[];
+export declare function toSmileSeries(chain: readonly OptionStrike[], put: boolean): LineData[];
+export declare class OptionSmileWidget {
+    static TYPE: "optionSmile";
+    rootEl: HTMLElement;
+    _host: TradingHost;
+    _closeBtn: HTMLElement | null;
+    _resetBtn: HTMLElement | null;
+    _emptyEl: HTMLElement | null;
+    _chartEl: HTMLElement | null;
+    _spotEl: HTMLElement | null;
+    _hoverEl: HTMLElement | null;
+    _chart: IChartApi | null;
+    _call: ISeriesApi<LineData> | null;
+    _put: ISeriesApi<LineData> | null;
+    _strikes: OptionStrike[];
+    _context: OptionChainContext;
+    _resizeObserver: ResizeObserver | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OptionSmileDeps): OptionSmileWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: OptionSmileDeps);
+    dispose(): void;
+    update(strikes: OptionStrike[], context?: OptionChainContext): void;
+    resetZoom(): void;
+    chart(): IChartApi | null;
+    _ensureChart(): boolean;
+    _render(): void;
+    _fit(): void;
+    _renderSpot(): void;
+    _renderHover(param: CrosshairEvent): void;
+}
 
 // FILE: order-entry-widget.d.ts
 import { TradingHost } from './trading-host.js';
@@ -547,6 +780,9 @@ export interface PnlCurve {
     zeroY: number;
     min: number;
     max: number;
+    from: number;
+    to: number;
+    last: number;
     positive: boolean;
 }
 export declare function compressPnl(points: readonly PnlPoint[], count: number): PnlPoint[];
@@ -704,6 +940,136 @@ export declare class StrategiesWidget {
     _positionCell(row: StrategyRow): string | Node;
     _tradingCell(row: StrategyRow): string | Node;
     _sparkline(row: StrategyRow): string | Node;
+}
+
+// FILE: surface-grid.d.ts
+import { type HeatBucket, type HeatCell, type HeatDirection, type HeatScale } from './heatmap-grid.js';
+export interface SurfaceView {
+    yaw: number;
+    pitch: number;
+    zoom: number;
+}
+export interface SurfaceBox {
+    width: number;
+    height: number;
+}
+export interface SurfaceQuad {
+    points: [number, number][];
+    tint: number;
+    depth: number;
+    bucket: HeatBucket;
+}
+export interface SurfaceAxis {
+    from: [number, number];
+    to: [number, number];
+    axis: 'x' | 'y' | 'z';
+    ticks: SurfaceTick[];
+}
+export interface SurfaceTick {
+    at: [number, number];
+    label: string;
+    away: [number, number];
+}
+export interface SurfaceVertex {
+    at: [number, number];
+    x: string;
+    y: string;
+    value: number;
+    depth: number;
+}
+export interface SurfaceLayout {
+    quads: SurfaceQuad[];
+    axes: SurfaceAxis[];
+    vertices: SurfaceVertex[];
+    xValues: string[];
+    yValues: string[];
+    scale: HeatScale;
+}
+export interface SurfaceInput {
+    width: number;
+    height: number;
+    cells: readonly HeatCell[];
+    betterWhen: HeatDirection;
+    view: SurfaceView;
+}
+export declare const MIN_PITCH = 0.12;
+export declare const MAX_PITCH = 1.45;
+export declare const DEFAULT_VIEW: SurfaceView;
+export declare function clampView(view: SurfaceView): SurfaceView;
+export declare function dragView(view: SurfaceView, dx: number, dy: number): SurfaceView;
+export declare function zoomView(view: SurfaceView, factor: number): SurfaceView;
+export declare function project(nx: number, ny: number, nz: number, view: SurfaceView, box: SurfaceBox): {
+    x: number;
+    y: number;
+    depth: number;
+};
+export declare function surfaceLayout(input: SurfaceInput): SurfaceLayout | null;
+export declare const SURFACE_HEIGHT_TICKS: readonly number[];
+export declare function nearestVertex(vertices: readonly SurfaceVertex[], x: number, y: number, reach: number): SurfaceVertex | null;
+
+// FILE: surface-widget.d.ts
+import { TradingHost } from './trading-host.js';
+import { type HeatCell, type HeatDirection } from './heatmap-grid.js';
+import { type SurfaceLayout, type SurfaceVertex, type SurfaceView } from './surface-grid.js';
+export interface SurfaceData {
+    xLabel: string;
+    yLabel: string;
+    metricLabel: string;
+    betterWhen: HeatDirection;
+    cells: HeatCell[];
+}
+export interface SurfaceDeps {
+    host: TradingHost;
+}
+export declare function wheelNotches(deltaY: number, deltaMode: number): number;
+export declare class SurfaceWidget {
+    static TYPE: "optimizationSurface";
+    rootEl: HTMLElement;
+    canvasEl: HTMLCanvasElement | null;
+    _host: TradingHost;
+    _closeBtn: HTMLElement | null;
+    _resetBtn: HTMLElement | null;
+    _emptyEl: HTMLElement | null;
+    _ctx: CanvasRenderingContext2D | null;
+    _data: SurfaceData | null;
+    _view: SurfaceView;
+    _resizeObserver: ResizeObserver | null;
+    _pointers: Map<number, {
+        x: number;
+        y: number;
+    }>;
+    _pinch: number;
+    _layout: SurfaceLayout | null;
+    _hover: SurfaceVertex | null;
+    _hoverEl: HTMLElement | null;
+    static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: SurfaceDeps): SurfaceWidget;
+    static _buildRoot(host: TradingHost): HTMLElement;
+    constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: SurfaceDeps);
+    dispose(): void;
+    update(data: SurfaceData): void;
+    view(): SurfaceView;
+    resetView(): void;
+    _bindGestures(): void;
+    _setHover(x: number | null, y: number | null): void;
+    _renderHover(): void;
+    _pointerSpread(): number;
+    _render(): void;
+    _drawAxes(ctx: CanvasRenderingContext2D, layout: SurfaceLayout, palette: {
+        grid: string;
+        font: string;
+    }): void;
+    _tickLabel(axis: 'x' | 'y' | 'z', label: string, layout: SurfaceLayout): string;
+    _axisCaption(axis: 'x' | 'y' | 'z'): string;
+    _drawHover(ctx: CanvasRenderingContext2D, palette: {
+        up: string;
+        grid: string;
+    }): void;
+    _drawFloor(ctx: CanvasRenderingContext2D, layout: SurfaceLayout, colour: string): void;
+    _drawFaces(ctx: CanvasRenderingContext2D, layout: SurfaceLayout, palette: {
+        up: string;
+        down: string;
+        grid: string;
+    }): void;
 }
 
 // FILE: trade-history-widget.d.ts

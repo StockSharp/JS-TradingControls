@@ -73,9 +73,55 @@ export type { CanvasPalette } from './trading-host.js';
 // equity is not here - that one shares the price axis and belongs to the chart engine.
 export { compressPnl, drawPnlCurve, pnlCurve } from './pnl-curve.js';
 
+// The same curve at the size of a chart: one control for an equity panel, so a host does not
+// hand-roll the arithmetic a sparkline already does.
+export { EquityWidget } from './equity-widget.js';
+
+export type { EquityDeps } from './equity-widget.js';
+
+// The chart engine the two chart panels are built on, re-exported so a host can reach the same
+// createChart these panels use rather than resolving a second copy of it.
+export { AreaSeries, CrosshairMode, LineSeries, createChart } from './chart-engine.js';
+
+export type { IChartApi, ISeriesApi } from './chart-engine.js';
+
+// One metric over two parameters. It knows nothing about optimisation - a grid of {x, y, value}
+// is the same object whatever produced it - which is what lets a backtest sweep and anything
+// else that varies two things share a control.
+export { OptimizationHeatmapWidget } from './optimization-heatmap-widget.js';
+
+export type { OptimizationHeatmapDeps } from './optimization-heatmap-widget.js';
+
+export { HeatDirections, heatScale, hitHeatmap, layoutHeatmap, tintOf, valueAt } from './heatmap-grid.js';
+
+// The same measurements as a landscape, turned by hand. No library under it: the projection is
+// arithmetic and the gestures are pointer events, so a mouse and a thumb take the same path.
+export { SurfaceWidget } from './surface-widget.js';
+
+export type { SurfaceData, SurfaceDeps } from './surface-widget.js';
+
+export {
+    DEFAULT_VIEW, MAX_PITCH, MIN_PITCH, clampView, dragView, project, surfaceLayout, zoomView,
+} from './surface-grid.js';
+
+export type { SurfaceAxis, SurfaceBox, SurfaceInput, SurfaceLayout, SurfaceQuad, SurfaceView } from './surface-grid.js';
+
+export type {
+    HeatBucket, HeatCell, HeatCellShape, HeatDirection, HeatGapShape, HeatLabel, HeatLayout,
+    HeatLayoutInput, HeatLegend, HeatLegendStep, HeatMark, HeatRect, HeatScale,
+} from './heatmap-grid.js';
+
 export type { PnlBox, PnlCurve, PnlCurveContext, PnlCurveStyle, PnlPoint } from './pnl-curve.js';
 
 export { OptionDeskWidget, greekPlaces, greekScales, scaleChain, sideGreeks } from './option-desk-widget.js';
+
+// The smile: the same chain the desk reads, drawn as the shape a trader looks for rather than as
+// a column of percentages.
+export { OptionSmileWidget } from './option-smile-widget.js';
+
+export type { OptionSmileDeps } from './option-smile-widget.js';
+
+export { sideVolatility, sortedChain, toSmileSeries } from './option-smile-widget.js';
 
 export type { OptionChainContext, OptionDeskDeps, OptionSide, OptionStrike } from './option-desk-widget.js';
 

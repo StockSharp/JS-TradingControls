@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
 <link rel="icon" type="image/x-icon" href="./favicon.ico" />
-<title>sstradingcontrols · StockSharp JS Trading Controls</title>
+<title>Optimization · sstradingcontrols</title>
 <!-- Stylesheet order is load-bearing: dockview.css gives the dock its structure,
      theme.css declares the --t-* tokens, trading-controls.css reads them, and
      demo.css comes last so the page can re-point the palette and restyle the
@@ -34,12 +34,10 @@
   <button id="langBtn" class="tbtn" type="button">中文</button>
 </header>
 
-<!-- The whole board is one dockview: every panel below the header is either a
-     control from the published dist/sstradingcontrols.js bundle, the SSChart
-     candlestick chart, or the demo's own host-port log. Drag a tab to rearrange,
-     drag a sash to resize — the docking is the same dockview-core the StockSharp
-     web terminal runs. -->
-<div id="dockHost" class="dock-host" data-board="terminal"></div>
+<!-- One parameter sweep, read two ways: a map of pairs and the landscape they make.
+     Every panel is a control from the published dist/sstradingcontrols.js bundle,
+     over the same demo host and the same sample data the other boards use. -->
+<div id="dockHost" class="dock-host" data-board="optimization"></div>
 
 <!-- Filled by TickerSink.publish(), which the primary watchlist calls after every
      render — so filtering or re-sorting the watchlist changes this strip. -->

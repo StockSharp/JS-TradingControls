@@ -32,6 +32,14 @@ export interface PnlCurve {
     /// The value range the box covers, zero included.
     min: number;
     max: number;
+    /// The stretch of time the box covers. Compression keeps the run's first and last samples
+    /// exactly, so these are where it started and where it stands - which is what lets a panel
+    /// wide enough for a time axis date both ends without laying the run out a second time.
+    from: number;
+    to: number;
+    /// The value the run ended at. `positive` is this figure's sign; a panel with room to print
+    /// a number wants the figure.
+    last: number;
     /// Whether the run ended at or above where it started. What the curve is coloured by - and
     /// the last value, not the highest: a run that peaked and gave it all back is a loss.
     positive: boolean;
@@ -127,6 +135,7 @@ export function pnlCurve(points: readonly PnlPoint[], box: PnlBox): PnlCurve | n
 
     const curve = shown.map(p => [x(p.time), y(p.value)] as [number, number]);
     const zeroY = y(0);
+    const last = shown[shown.length - 1].value;
 
     return {
         points: curve,
@@ -136,7 +145,10 @@ export function pnlCurve(points: readonly PnlPoint[], box: PnlBox): PnlCurve | n
         zeroY,
         min,
         max,
-        positive: shown[shown.length - 1].value >= 0,
+        from: firstTime,
+        to: lastTime,
+        last,
+        positive: last >= 0,
     };
 }
 

@@ -7,5 +7,7 @@
     "emitDeclarationOnly": true,
     "rootDir": "src"
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Build-only, and not part of the package's surface — see tsconfig.build.json.
+  "exclude": ["src/chart-engine.global.ts"]
 }

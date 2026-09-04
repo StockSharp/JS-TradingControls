@@ -26,6 +26,10 @@ export const ControlTypes = {
     LogMonitor: 'logMonitor',
     Strategies: 'strategies',
     OptionDesk: 'optionDesk',
+    OptionSmile: 'optionSmile',
+    Equity: 'equity',
+    OptimizationHeatmap: 'optimizationHeatmap',
+    OptimizationSurface: 'optimizationSurface',
 } as const;
 
 export type ControlType = typeof ControlTypes[keyof typeof ControlTypes];
