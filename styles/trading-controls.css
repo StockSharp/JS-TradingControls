@@ -1398,6 +1398,12 @@
     overflow: hidden;
 }
 
+/* The tree is hidden rather than dropped, so the menu can bring it back without the panel
+   being rebuilt and the selection it holds surviving the round trip. */
+.log-monitor-panel.log-sources-off .log-sources {
+    display: none;
+}
+
 .log-sources {
     flex: 0 0 14rem;
     min-height: 0;

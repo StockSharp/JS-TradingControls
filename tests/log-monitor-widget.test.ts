@@ -9,6 +9,17 @@ import { LogMonitorWidget } from '../src/log-monitor-widget.js';
 
 installFakeDom();
 
+/// First descendant carrying a class, or null. The tests ask whether a part was drawn at all.
+function find(node: FakeElement, cls: string): FakeElement | null {
+    const classes = String((node as { className?: string }).className ?? '').split(' ');
+    if (classes.includes(cls)) return node;
+    for (const child of node.childNodes ?? []) {
+        const hit = find(child as FakeElement, cls);
+        if (hit !== null) return hit;
+    }
+    return null;
+}
+
 const SOURCES: LogSourceNode[] = [
     { id: 'root', name: 'Terminal' },
     { id: 'conn', name: 'Binance', parentId: 'root' },
@@ -121,6 +132,59 @@ describe('LogMonitorWidget', () => {
         widget.append([{ id: 4, time: '2024-03-01T10:00:03Z', level: LogLevels.Info, sourceId: 'root', message: 'later' }]);
 
         assert.deepStrictEqual(widget.visible().map(m => m.id), [3, 4]);
+    });
+
+    it('leaves out its own title bar when the host says it has one', () => {
+        const parent = el('div');
+        const widget = LogMonitorWidget.create(asDom(parent), {}, { host: fakeHost(), chrome: false });
+        widget.append([MESSAGES[0]]);
+
+        const root = parent.childNodes[0] as FakeElement;
+        assert.equal(find(root, 'panel-header'), null, 'the header was drawn anyway');
+        assert.deepStrictEqual(painted(root).map(cells => cells[3]), ['started'], 'the messages went with it');
+    });
+
+    it('starts with the source tree put away when asked, keeping the messages', () => {
+        const parent = el('div');
+        const widget = LogMonitorWidget.create(asDom(parent), {}, { host: fakeHost(), sources: false });
+        widget.setSources(SOURCES.map(s => ({ ...s })));
+        widget.append(MESSAGES.map(m => ({ ...m })));
+
+        const root = parent.childNodes[0] as FakeElement;
+        assert.equal(widget.sourcesShown(), false, 'the tree was shown anyway');
+        assert.notEqual(find(root, 'log-sources'), null, 'the tree must still exist, to be brought back');
+        assert.equal(painted(root).length, MESSAGES.length, 'the messages went with it');
+    });
+
+    it('brings the source tree back through the menu after starting without it', () => {
+        const parent = el('div');
+        const widget = LogMonitorWidget.create(asDom(parent), {}, { host: fakeHost(), sources: false });
+        widget.setSources(SOURCES.map(s => ({ ...s })));
+
+        assert.equal(widget.sourcesShown(), false);
+
+        widget.showSources(true);
+        assert.equal(widget.sourcesShown(), true, 'the tree did not come back');
+
+        widget.showSources(false);
+        assert.equal(widget.sourcesShown(), false, 'the tree did not go away again');
+    });
+
+    it('keeps the selected source while the tree is hidden', () => {
+        const { widget } = monitor();
+
+        widget.select('conn');
+        const withTree = widget.visible().map(m => m.id);
+        widget.showSources(false);
+
+        assert.deepStrictEqual(widget.visible().map(m => m.id), withTree, 'hiding the tree changed the filter');
+    });
+
+    it('draws both by default, so a host that asks for nothing loses nothing', () => {
+        const { root } = monitor();
+
+        assert.notEqual(find(root, 'panel-header'), null);
+        assert.equal(monitor().widget.sourcesShown(), true);
     });
 
     it('words its times through the host, like every other control', () => {

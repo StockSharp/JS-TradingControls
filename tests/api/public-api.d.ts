@@ -324,6 +324,8 @@ import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export interface LogMonitorDeps {
     host: TradingHost;
     maxMessages?: number;
+    chrome?: boolean;
+    sources?: boolean;
 }
 export declare class LogMonitorWidget {
     static TYPE: "logMonitor";
@@ -343,12 +345,14 @@ export declare class LogMonitorWidget {
     _selected: string | null;
     _grid: DataGrid<LogMessageRow> | null;
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: LogMonitorDeps): LogMonitorWidget;
-    static _buildRoot(host: TradingHost): HTMLElement;
+    static _buildRoot(host: TradingHost, chrome: boolean, sources: boolean): HTMLElement;
     constructor(rootEl: HTMLElement, _state: Record<string, unknown>, deps: LogMonitorDeps);
     dispose(): void;
     setSources(sources: LogSourceNode[]): void;
     append(messages: LogMessageRow[]): void;
     clear(): void;
+    sourcesShown(): boolean;
+    showSources(on: boolean): void;
     select(sourceId: string | null): void;
     visible(): LogMessageRow[];
     _render(): void;

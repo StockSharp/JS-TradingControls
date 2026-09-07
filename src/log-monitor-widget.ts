@@ -24,6 +24,15 @@ export interface LogMonitorDeps {
     /// How many messages to keep. Older ones fall off the front. Defaults to 5000 - enough to
     /// scroll back through a session, small enough that a chatty connector cannot fill a tab.
     maxMessages?: number;
+    /// Whether the panel draws its own title bar and close button. Defaults to true. A host that
+    /// already titles the panel and closes it from elsewhere - a dock tab, say - turns this off,
+    /// so the title is not said twice and no button offers a close that leads somewhere else.
+    chrome?: boolean;
+    /// Whether the source tree starts out shown. Defaults to true. A consumer whose log has one
+    /// writer has nothing to choose between, and the fixed-width column is space the messages
+    /// need. This is the initial state only — the reader can bring the tree back from the grid's
+    /// context menu, so a session that grows a second writer is not stuck without it.
+    sources?: boolean;
 }
 
 const DEFAULT_MAX = 5_000;
@@ -65,7 +74,7 @@ export class LogMonitorWidget {
 
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: LogMonitorDeps): LogMonitorWidget {
         const host = assertHost(deps?.host, 'LogMonitorWidget');
-        const root = LogMonitorWidget._buildRoot(host);
+        const root = LogMonitorWidget._buildRoot(host, deps?.chrome !== false, deps?.sources !== false);
         root.id = makePanelId(LogMonitorWidget.TYPE);
         hostEl.appendChild(root);
         return new LogMonitorWidget(root, state || {}, deps);
@@ -74,13 +83,16 @@ export class LogMonitorWidget {
     // The panel's markup: a source tree, a toolbar of level toggles and a text box, and the
     // message table. The level toggles are buttons rather than checkboxes because they are read
     // as a row of states, and each carries its letter so the toolbar and the column agree.
-    static _buildRoot(host: TradingHost): HTMLElement {
+    static _buildRoot(host: TradingHost, chrome: boolean, sources: boolean): HTMLElement {
         const title = host.t('LogMonitor');
-        return makePanelRoot('log-monitor-panel', title, [
-            makeElement('div', 'panel-header', {}, [
+        const header = chrome
+            ? [makeElement('div', 'panel-header', {}, [
                 makeElement('span', '', {}, [title]),
                 makeIconButton('bt-icon-btn bt-icon-cancel panel-close-btn', host.t('ClosePanel'), 'bi-x', { type: 'button' }),
-            ]),
+            ])]
+            : [];
+        return makePanelRoot(`log-monitor-panel${sources ? '' : ' log-sources-off'}`, title, [
+            ...header,
             makeElement('div', 'panel-body log-monitor-body', {}, [
                 makeElement('div', 'log-sources', { role: 'tree', 'aria-label': host.t('LogSources') }, []),
                 makeElement('div', 'log-messages', {}, [
@@ -164,7 +176,16 @@ export class LogMonitorWidget {
                 rowKey: (m) => String(m.id),
                 emptyText: this._host.t('NoLogMessages'),
                 rowClass: (m) => `log-row log-row-${m.level}`,
-                contextMenu: makeGridMenu(this._host),
+                contextMenu: {
+                    ...makeGridMenu<LogMessageRow>(this._host),
+                    // The tree is worth its width when several things write to the log and worth
+                    // nothing when one does, and which of those is true changes with the session.
+                    // So it is a choice the reader makes here, next to the other column choices.
+                    items: (_context, defaults) => [
+                        ...defaults,
+                        { label: this._host.t('LogSources'), checked: this.sourcesShown(), run: () => this.showSources(!this.sourcesShown()) },
+                    ],
+                },
                 selection: 'multi',
             })
             : null;
@@ -200,6 +221,17 @@ export class LogMonitorWidget {
     clear(): void {
         this._messages = [];
         this._render();
+    }
+
+    /// Whether the source tree is currently drawn.
+    sourcesShown(): boolean {
+        return !this.rootEl.classList.contains('log-sources-off');
+    }
+
+    /// Show or hide the source tree. Hiding it does not drop the filter that is set: the
+    /// messages stay filtered by whatever was selected, which is what the reader last asked for.
+    showSources(on: boolean): void {
+        this.rootEl.classList.toggle('log-sources-off', !on);
     }
 
     /// Show one source's subtree, or everything when given null.
