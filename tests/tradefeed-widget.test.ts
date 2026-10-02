@@ -22,7 +22,7 @@ interface Subscription {
     level: string;
 }
 
-function tradeFeedPanel(state: Record<string, unknown> = {}) {
+function tradeFeedPanel(state: Record<string, unknown> = {}, ownTradesTab = true) {
     const parent = el('div');
     const host = fakeHost();
     const subscriptions: Subscription[] = [];
@@ -37,7 +37,7 @@ function tradeFeedPanel(state: Record<string, unknown> = {}) {
     };
     host.trading.pickInstrument = (onPicked) => picked.push(onPicked);
 
-    const widget = TradeFeedWidget.create(asDom(parent), state, { host });
+    const widget = TradeFeedWidget.create(asDom(parent), state, { host, ownTradesTab });
     const root = parent.childNodes[0] as FakeElement;
     // Nothing lays anything out here, so the canvas is told how big it is —
     // otherwise every bubble lands in a one-pixel box.
@@ -132,6 +132,24 @@ describe('TradeFeedWidget builds its own panel', () => {
         assert.throws(
             () => TradeFeedWidget.create(asDom(el('div')), {}, { host: { isPrimary: true } } as never),
             /TradeFeedWidget: host\.t is required/);
+    });
+});
+
+describe('TradeFeedWidget: without its own-trades tab', () => {
+    // A host that lists the account's own fills beside its orders and positions keeps them out of the feed.
+    it('builds the tape alone: no tabs, no own-trades table', () => {
+        const { root } = tradeFeedPanel({}, false);
+
+        assert.equal(root.querySelector('.tf-tabs'), null);
+        assert.equal(root.querySelector('.tf-my'), null);
+    });
+
+    it('still paints every print it is given', () => {
+        const { widget, root } = tradeFeedPanel({}, false);
+
+        widget.setTrades([...TAPE]);
+
+        assert.equal(rows(root).length, TAPE.length);
     });
 });
 
@@ -323,7 +341,7 @@ describe('TradeFeedWidget: the bubble chart', () => {
         const first = tradeFeedPanel();
         showBubbles(first.root);
         // A second feed on the same page reads the same preference store.
-        const second = TradeFeedWidget.create(asDom(el('div')), {}, { host: first.host });
+        const second = TradeFeedWidget.create(asDom(el('div')), {}, { host: first.host, ownTradesTab: true });
         assert.equal(second.view, 'bubbles');
     });
 

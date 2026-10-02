@@ -35,12 +35,14 @@ import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 // no identities to diff, select or flash by.
 type KeyedTrade = TradeRow & { _k?: number };
 
-/// The panel needs nothing beyond the host port. It reports no application
-/// action: a tape is read, and the two gestures it does make — pin an
-/// instrument, open another feed — are the host's own `pickInstrument` and
-/// `spawn`.
+/// The panel reports no application action: a tape is read, and the two
+/// gestures it does make — pin an instrument, open another feed — are the
+/// host's own `pickInstrument` and `spawn`.
 export interface TradeFeedDeps {
     host: TradingHost;
+    /// Whether the feed carries a second tab with the account's own fills. A host
+    /// that lists them beside its orders and positions shows the tape alone.
+    ownTradesTab: boolean;
 }
 
 // Opacity, not colour. The hue of every stroke below is the host's
@@ -108,7 +110,9 @@ export class TradeFeedWidget {
         // host, so a missing host has to fail here rather than render a panel
         // captioned with raw English keys.
         const host = assertHost(deps?.host, 'TradeFeedWidget');
-        const root = TradeFeedWidget._buildRoot(host);
+        if (typeof deps.ownTradesTab !== 'boolean')
+            throw new Error('TradeFeedWidget: dep "ownTradesTab" is required');
+        const root = TradeFeedWidget._buildRoot(host, deps.ownTradesTab);
         root.id = makePanelId(TradeFeedWidget.TYPE);
         hostEl.appendChild(root);
         return new TradeFeedWidget(root, state || {}, deps);
@@ -121,7 +125,7 @@ export class TradeFeedWidget {
     // pins another instrument to THIS feed, the one beside it asks the host for
     // another feed panel. The tooltips are what tell them apart, so neither is
     // an icon on its own.
-    static _buildRoot(host: TradingHost): HTMLElement {
+    static _buildRoot(host: TradingHost, ownTradesTab: boolean): HTMLElement {
         const addInstrument = host.t('AddInstrument');
         const marketTrades = host.t('MarketTrades');
         return makePanelRoot('tradefeed-panel tf-tab-market tf-view-list', host.t('TradeFeed'), [
@@ -135,10 +139,12 @@ export class TradeFeedWidget {
                 ]),
                 makeIconButton('bt-icon-btn bt-icon-cancel panel-close-btn', host.t('ClosePanel'), 'bi-x', { type: 'button' }),
             ]),
-            makeElement('div', 'tf-tabs', { role: 'tablist', 'aria-label': host.t('Trade feed tabs') }, [
-                makeElement('button', 'tf-tab active', { type: 'button', role: 'tab', 'aria-selected': 'true', 'data-tab': 'market' }, [marketTrades]),
-                makeElement('button', 'tf-tab', { type: 'button', role: 'tab', 'aria-selected': 'false', 'data-tab': 'my' }, [host.t('My trades')]),
-            ]),
+            ...(ownTradesTab ? [
+                makeElement('div', 'tf-tabs', { role: 'tablist', 'aria-label': host.t('Trade feed tabs') }, [
+                    makeElement('button', 'tf-tab active', { type: 'button', role: 'tab', 'aria-selected': 'true', 'data-tab': 'market' }, [marketTrades]),
+                    makeElement('button', 'tf-tab', { type: 'button', role: 'tab', 'aria-selected': 'false', 'data-tab': 'my' }, [host.t('My trades')]),
+                ]),
+            ] : []),
             makeElement('div', 'tf-extras', { role: 'list', 'aria-label': host.t('ExtraInstruments'), hidden: '' }, []),
             // Each tape is a DataGrid over the shared table skin: the <thead>
             // is left empty for the grid to fill, which is also what makes the
@@ -149,12 +155,14 @@ export class TradeFeedWidget {
                     makeElement('tbody', '', {}, []),
                 ]),
             ]),
-            makeElement('div', 'tradefeed-content tf-my', {}, [
-                makeElement('table', 'terminal-table tradefeed-table', { role: 'table', 'aria-label': host.t('My trades') }, [
-                    makeElement('thead', '', {}, []),
-                    makeElement('tbody', '', {}, []),
+            ...(ownTradesTab ? [
+                makeElement('div', 'tradefeed-content tf-my', {}, [
+                    makeElement('table', 'terminal-table tradefeed-table', { role: 'table', 'aria-label': host.t('My trades') }, [
+                        makeElement('thead', '', {}, []),
+                        makeElement('tbody', '', {}, []),
+                    ]),
                 ]),
-            ]),
+            ] : []),
             makeElement('canvas', 'tradefeed-bubbles tf-bubbles', { 'aria-hidden': 'true' }, []),
             makeElement('div', 'tf-bubble-tooltip', { role: 'tooltip', hidden: '' }, []),
         ]);

@@ -1204,7 +1204,7 @@
     }
 
     function createTradeFeed(hostEl) {
-        const widget = TradeFeedWidget.create(hostEl, {}, { host: makeHost(ControlTypes.TradeFeed) });
+        const widget = TradeFeedWidget.create(hostEl, {}, { host: makeHost(ControlTypes.TradeFeed), ownTradesTab: true });
         // Two pushes, because they are two things the host knows and the panel
         // does not: which symbol the page is on, and what has printed so far.
         widget.setActiveSymbol(FEED_SYMBOL);

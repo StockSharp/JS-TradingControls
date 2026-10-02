@@ -1168,6 +1168,7 @@ import { type BubbleLane, type BubbleShape } from './tradefeed-bubbles.js';
 import { DataGrid, GridColumn } from '@stocksharp/grids/source/data-grid';
 export interface TradeFeedDeps {
     host: TradingHost;
+    ownTradesTab: boolean;
 }
 export declare class TradeFeedWidget {
     static TYPE: "tradefeed";
@@ -1203,7 +1204,7 @@ export declare class TradeFeedWidget {
     _activeSymbol: string | null;
     _extraSymbols: Set<string>;
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps): TradeFeedWidget;
-    static _buildRoot(host: TradingHost): HTMLElement;
+    static _buildRoot(host: TradingHost, ownTradesTab: boolean): HTMLElement;
     constructor(rootEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps);
     dispose(): void;
     setActiveSymbol(symbol: string | null): void;

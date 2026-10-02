@@ -317,7 +317,9 @@ painted from a palette this package chose.
 
 The second tab is the account's own fills, and the only thing this control pulls
 rather than being handed: it asks `trading.api.getExecutions` for the portfolio
-the host names at the moment the tab is opened.
+the host names at the moment the tab is opened. A host that lists those fills
+beside its orders and positions passes `ownTradesTab: false`, and the feed is
+the tape alone.
 
 ### `OrderBookWidget`
 
