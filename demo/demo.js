@@ -70,6 +70,14 @@
 
     // ---------------------------------------------------------------- sample data
 
+    // A catalog long enough for the watchlist to page through, switchable on the terminal board.
+    // Its instruments carry no prices.
+    let longCatalog = false;
+    const LONG_CATALOG = Array.from({ length: 2000 }, (_, i) => {
+        const n = String(i + 1).padStart(4, '0');
+        return { symbol: `DEMO${n}@DEMO`, name: `${n} / 2000`, exchange: 'DEMO', category: 'Demo' };
+    });
+
     // The instrument universe. The wire half (symbol / name / exchange /
     // category) is what `searchInstruments` returns; the rest is this demo's own
     // price simulation state. `category` is what the watchlist turns into filter
@@ -589,7 +597,7 @@
         searchInstruments(query) {
             logLine('data', `api.searchInstruments("${query}")`, HOST_SOURCE);
             const q = String(query || '').trim().toLowerCase();
-            const rows = UNIVERSE
+            const rows = (longCatalog ? UNIVERSE.concat(LONG_CATALOG) : UNIVERSE)
                 .filter(u => !q || u.symbol.toLowerCase().includes(q) || u.name.toLowerCase().includes(q))
                 .map(u => ({ symbol: u.symbol, name: u.name, exchange: u.exchange, category: u.category }));
             return new Promise(resolve => setTimeout(() => resolve(rows), 70));
@@ -1204,7 +1212,9 @@
     }
 
     function createTradeFeed(hostEl) {
-        const widget = TradeFeedWidget.create(hostEl, {}, { host: makeHost(ControlTypes.TradeFeed), ownTradesTab: true });
+        // The account's own fills have the trade history panel beside the orders and positions,
+        // so the feed is the tape alone - the broker terminal's layout.
+        const widget = TradeFeedWidget.create(hostEl, {}, { host: makeHost(ControlTypes.TradeFeed), ownTradesTab: false });
         // Two pushes, because they are two things the host knows and the panel
         // does not: which symbol the page is on, and what has printed so far.
         widget.setActiveSymbol(FEED_SYMBOL);
@@ -2583,6 +2593,11 @@
         const light = document.documentElement.getAttribute('data-bs-theme') === 'light';
         document.getElementById('themeBtn').textContent = light ? LANG.page.themeDark : LANG.page.themeLight;
         document.getElementById('langBtn').textContent = LANG.switchTo;
+        const catalogBtn = document.getElementById('catalogBtn');
+        if (catalogBtn) {
+            const count = UNIVERSE.length + (longCatalog ? LONG_CATALOG.length : 0);
+            catalogBtn.textContent = LANG.page.catalog.replace('{0}', String(count));
+        }
         document.querySelector('.demo-statusbar .status-left').textContent = LANG.page.statusLeft;
         for (const link of document.querySelectorAll('[data-board-link]')) {
             const board = link.dataset.boardLink;
@@ -2635,6 +2650,18 @@
     // equivalent of the old per-cell "Create it again" button.
     document.getElementById('layoutBtn').addEventListener('click', () => {
         logLine('act', 'reset layout — rebuilding the default dock', HOST_SOURCE);
+        dockApi.clear();
+        buildDefaultLayout();
+        pushPrices();
+        pushOrderEntry();
+    });
+
+    // The watchlist reads the catalog when it is created, so the board is rebuilt
+    // the way the language switch rebuilds it.
+    document.getElementById('catalogBtn')?.addEventListener('click', () => {
+        longCatalog = !longCatalog;
+        logLine('act', `watchlist re-created over ${longCatalog ? 'the long' : 'the sample'} catalog`, HOST_SOURCE);
+        applyPageText();
         dockApi.clear();
         buildDefaultLayout();
         pushPrices();

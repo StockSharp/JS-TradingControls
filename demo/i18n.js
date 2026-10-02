@@ -377,6 +377,7 @@
             tickerEmpty: 'ticker: the watchlist has published no visible symbols',
             pickerTitle: 'Pick an instrument',
             pickerDismiss: 'Dismiss',
+            catalog: 'Catalog: {0} instruments',
         },
     };
 
@@ -728,6 +729,7 @@
             tickerEmpty: '行情条：自选列表尚未发布任何可见合约',
             pickerTitle: '选择合约',
             pickerDismiss: '取消',
+            catalog: '目录：{0} 个合约',
         },
     };
 
