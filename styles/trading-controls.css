@@ -531,7 +531,8 @@
     border-color: var(--t-accent);
 }
 
-.watchlist-body {
+/* The list scrolls in the pane around its table: a table body cannot be a scroll container. */
+.watchlist-pane {
     flex: 1;
     min-height: 0;
     overflow-y: auto;

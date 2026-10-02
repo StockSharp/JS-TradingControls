@@ -37,7 +37,7 @@ const _hostStyled = new Set([
     // Structural hooks the controls query themselves; they carry no looks.
     'positions-body', 'trade-history-body', 'active-orders-body', 'statistics-body',
     'log-body', 'log-clear-btn', 'strategies-body', 'option-desk-body',
-    'watchlist-headers', 'watchlist-search', 'watchlist-pane', 'panel-close-btn',
+    'watchlist-headers', 'watchlist-search', 'watchlist-body', 'panel-close-btn',
     'panel-refresh-btn', 'panel-export-btn', 'panel-cancel-all-btn', 'panel-add-btn',
     // The ladder's close button. Its looks come from the `bt-icon-btn
     // bt-icon-cancel` pair beside it; this name is only how the control finds

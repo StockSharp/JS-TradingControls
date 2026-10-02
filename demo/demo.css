@@ -194,12 +194,6 @@ body {
     height: 100%;
 }
 
-/* The watchlist's scroll container. The blotters wrap their table in
-   `.panel-body-content`, which the package sizes and scrolls; the watchlist
-   wraps its own in `.watchlist-pane`, which the package leaves to the host —
-   without a height on it the table simply overflows the panel. */
-.watchlist-panel .watchlist-pane { flex: 1; min-height: 0; overflow-y: auto; }
-
 /* ----------------------------------------------------------- dockview tab */
 
 /* One row of chrome per panel: the dockview tab carries the title, the
