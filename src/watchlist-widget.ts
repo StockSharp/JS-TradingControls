@@ -37,7 +37,8 @@ export class WatchlistWidget {
     // day is scratch, not a setting worth syncing.
     static BASELINE_KEY_PREFIX = 'wlBaseline:';
     static VISIBLE_CAP = 30;
-    static RENDER_CAP = 300;
+    // Rows painted at a time: scrolling the list towards its end paints the next page.
+    static RENDER_PAGE = 300;
     static TYPE = ControlTypes.Watchlist;
 
     rootEl: HTMLElement;
@@ -156,8 +157,9 @@ export class WatchlistWidget {
                 emptyText: this._host.t('No instruments'),
                 rowClass: (i) => (i.symbol === this.currentSymbol ? 'wl-row wl-current' : 'wl-row'),
                 bindRow: (tr, i) => tr.addEventListener('click', () => this._deps.onSelect(i.symbol!)),
-                // Paint a screenful, export and subscribe over the whole filtered set.
-                renderLimit: WatchlistWidget.RENDER_CAP,
+                // Paint a page at a time as the list is scrolled; export over the whole filtered set.
+                renderLimit: WatchlistWidget.RENDER_PAGE,
+                scroller: this.rootEl.querySelector('.watchlist-pane') as HTMLElement,
                 // A header click re-renders through the grid, so this is the only
                 // place that sees every change to the visible set — including a sort
                 // the widget was never told about.
@@ -395,7 +397,7 @@ export class WatchlistWidget {
     }
 
     // Export the current filtered+sorted view to .xlsx — every matching
-    // instrument, without the RENDER_CAP truncation applied to the DOM.
+    // instrument, painted or not.
     _export(): void {
         this._grid?.download('watchlist', this._host.t('Markets'));
     }

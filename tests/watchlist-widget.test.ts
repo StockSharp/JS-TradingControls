@@ -161,9 +161,9 @@ describe('WatchlistWidget', () => {
         assert.deepStrictEqual(sheet.rows, [['BTC', 100, 0], ['ETH', '', ''], ['SOL', '', '']]);
     });
 
-    it('paints a screenful but exports and publishes the whole filtered set', () => {
+    it('paints a page but exports and publishes the whole filtered set', () => {
         const { root, published } = watchlistPanel();
-        assert.equal(WatchlistWidget.RENDER_CAP > INSTRUMENTS.length, true);
+        assert.equal(WatchlistWidget.RENDER_PAGE > INSTRUMENTS.length, true);
         assert.equal(wlRows(root).length, 3);
         // A host feeds its ticker from this; it is the visible set, not the
         // painted one, and the control no longer reaches for a ticker itself.
@@ -223,5 +223,27 @@ describe('WatchlistWidget', () => {
         assert.equal(host.calls.logged.length > 0, true, 'the failure has to reach the port');
         assert.match(host.calls.logged[0], /WatchlistWidget: failed to load instruments: .*search is down/);
         assert.deepStrictEqual(widget.instruments, [], 'and the panel stays empty rather than half-loaded');
+    });
+});
+
+describe('WatchlistWidget: a catalog longer than a page', () => {
+    // A broker lists thousands of instruments. A page of them is painted, and scrolling the list towards its end
+    // paints the next, so every instrument can be reached without the whole catalog painted up front.
+    it('paints the next page as the list is scrolled to its end', () => {
+        const page = WatchlistWidget.RENDER_PAGE;
+        const catalog: InstrumentRow[] = Array.from({ length: page + 5 },
+            (_, i) => ({ symbol: `S${String(i).padStart(5, '0')}@IMEX`, exchange: 'IMEX', name: `Instrument ${i}` }));
+        const { widget, root } = watchlistPanel();
+        widget.instruments = catalog;
+        widget._render();
+        assert.equal(wlRows(root).length, page);
+
+        const pane = root.querySelector('.watchlist-pane')!;
+        pane.clientHeight = 100;
+        pane.scrollHeight = 200;
+        pane.scrollTop = 100;
+        pane.dispatchEvent({ type: 'scroll', target: pane });
+
+        assert.equal(wlRows(root).length, page + 5, 'the rest of the catalog is painted once the reader gets near it');
     });
 });

@@ -184,7 +184,7 @@
     "release:major": "npm version major -m \"chore: release v%s\""
   },
   "dependencies": {
-    "@stocksharp/grids": "^1.2.1"
+    "@stocksharp/grids": "^1.3.0"
   },
   "devDependencies": {
     "@stocksharp/chart": "^2.4.0",

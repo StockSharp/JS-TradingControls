@@ -243,6 +243,9 @@ export class FakeElement {
     // control correctly does nothing.
     clientWidth = 0;
     clientHeight = 0;
+    // An element a list scrolls in: how far it is scrolled and how tall its content is.
+    scrollTop = 0;
+    scrollHeight = 0;
 
     private _rect: DOMRectLike = { left: 0, top: 0, width: 0, height: 0 };
     private _context: FakeCanvasContext | null = null;
@@ -418,6 +421,11 @@ export class FakeElement {
     addEventListener(type: string, handler: FakeListener): void {
         if (!this._listeners.has(type)) this._listeners.set(type, []);
         this._listeners.get(type)!.push(handler);
+    }
+
+    removeEventListener(type: string, handler: FakeListener): void {
+        const handlers = this._listeners.get(type);
+        if (handlers) this._listeners.set(type, handlers.filter(h => h !== handler));
     }
 
     /// Bubbles up the tree until something stops it — the favourite star relies

@@ -1411,7 +1411,7 @@ export declare class WatchlistWidget {
     static FAVORITES_KEY: string;
     static BASELINE_KEY_PREFIX: string;
     static VISIBLE_CAP: number;
-    static RENDER_CAP: number;
+    static RENDER_PAGE: number;
     static TYPE: "watchlist";
     rootEl: HTMLElement;
     api: TradingApi;

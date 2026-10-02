@@ -276,9 +276,11 @@ at refresh time rather than one captured at construction.
 Live quotes with a search box, favourites and one tab per instrument category
 found in the data. A quote patches the two affected cells through the grid's
 `(rowKey, columnKey)` lookup instead of repainting — a repaint would cancel the
-flash animation it just started. It paints a screenful (`RENDER_CAP`) while the
-export and the subscription sync work over the whole filtered set, and only the
-primary instance reports to the host's ticker.
+flash animation it just started. It paints a page of rows (`RENDER_PAGE`) and the
+next page each time the list is scrolled near its end, so a catalog of thousands
+is reachable without being painted at once; the export and the subscription sync
+work over the whole filtered set, and only the primary instance reports to the
+host's ticker.
 
 ### `OrderEntryWidget`
 
