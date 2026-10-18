@@ -344,10 +344,15 @@ export class FakeElement {
 
     get lastChild(): FakeNode | null { return this.childNodes[this.childNodes.length - 1] ?? null; }
 
-    /// Insert before `reference`, or append when it is null — the tape prepends
-    /// each new print rather than repainting, which is what keeps the flash
-    /// animation running on the rows already on screen.
+    /// The element children, in order: the grid places its rows against them.
+    get children(): FakeElement[] {
+        return this.childNodes.filter((n): n is FakeElement => n instanceof FakeElement);
+    }
+
+    /// Insert before `reference`, or append when it is null. A node that already has a parent moves, as in the
+    /// browser: the grid keeps the rows a repaint did not change and moves them into their new order.
     insertBefore<T extends FakeNode>(node: T, reference: FakeNode | null): T {
+        node.parentNode?.removeChild(node);
         const at = reference ? this.childNodes.indexOf(reference) : -1;
         node.parentNode = this;
         if (at < 0) this.childNodes.push(node);
@@ -358,6 +363,18 @@ export class FakeElement {
     removeChild<T extends FakeNode>(node: T): T {
         this.childNodes = this.childNodes.filter(n => n !== node);
         node.parentNode = null;
+        return node;
+    }
+
+    /// A cell that reads otherwise is swapped for a new one in the row it belongs to.
+    replaceChild<T extends FakeNode>(node: T, old: FakeNode): T {
+        node.parentNode?.removeChild(node);
+        const at = this.childNodes.indexOf(old);
+        if (at < 0)
+            throw new Error('replaceChild: the node to replace is not a child');
+        this.childNodes[at] = node;
+        node.parentNode = this;
+        old.parentNode = null;
         return node;
     }
 
