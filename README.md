@@ -38,6 +38,13 @@ one parameter sweep read two ways, as a map of pairs and as the landscape they
 make. The panels, the host and the tape are shared; a board decides only which
 panels are on it and where.
 
+`load.html` is not a board but a meter. It feeds the tape, and the ladder if asked,
+from ten to five hundred prints a second, one print per message as a socket
+delivers them. It shows what that costs: the frames the browser still draws, the
+paints, the DOM nodes those paints create, and the share of the main thread spent
+in the controls. `load.html?rate=200&book=1&auto=1` starts a run without a click;
+`window.__loadReset()` and `window.__loadReport()` count one for a script.
+
 ## Quick start
 
 ```sh

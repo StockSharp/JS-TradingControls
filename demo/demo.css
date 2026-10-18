@@ -532,3 +532,58 @@ body {
     border-color: var(--t-border);
     background: var(--t-hover);
 }
+
+/* ------------------------------------------------------------- load page */
+
+/* load.html: the tape and the ladder side by side under a row of meters. The
+   panels get a fixed box, as a dock would give them, so the controls lay out
+   the way they do in the terminal. */
+.load-label { font-size: 11px; color: var(--t-text-dim); }
+.load-rates { display: inline-flex; gap: 4px; }
+
+.load-meters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--t-border);
+}
+
+.load-meter {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+}
+
+.load-meter-value { font-size: 22px; font-weight: 600; color: var(--t-text-bright); }
+.load-meter-label { font-size: 11px; color: var(--t-text-dim); }
+
+.load-panels {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 10px;
+    padding: 12px 14px;
+}
+
+.load-panel {
+    height: max(480px, calc(100vh - 200px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--t-panel);
+    border: 1px solid var(--t-border);
+    border-radius: var(--t-radius);
+}
+
+.load-panel[hidden] { display: none; }
+.load-panel > * { flex: 1; min-height: 0; }
+.load-note { color: var(--t-text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 768px) {
+    .load-meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

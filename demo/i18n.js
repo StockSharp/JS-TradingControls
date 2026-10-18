@@ -368,7 +368,7 @@
             hostSource: 'Demo host',
             // The three boards this demo is. One page carrying every panel made a trading
             // screen that also optimised strategies, which is not a screen anyone has.
-            boards: { terminal: 'Terminal', strategies: 'Strategies', optimization: 'Optimization' },
+            boards: { terminal: 'Terminal', strategies: 'Strategies', optimization: 'Optimization', load: 'Load' },
             sweepFast: 'Fast MA',
             sweepSlow: 'Slow MA',
             hostLogNote: 'every line is a call a control made into the demo host',
@@ -378,6 +378,20 @@
             pickerTitle: 'Pick an instrument',
             pickerDismiss: 'Dismiss',
             catalog: 'Catalog: {0} instruments',
+            // The load page: the tape and the ladder fed at a chosen rate, and what that costs.
+            load: {
+                rate: 'Trades per second',
+                stop: 'Stop',
+                book: 'Order book',
+                note: 'one print per message, as a socket delivers them',
+                meters: {
+                    trades: 'trades / s',
+                    fps: 'frames / s',
+                    paints: 'paints / s',
+                    nodes: 'nodes created / s',
+                    busy: 'busy in the controls',
+                },
+            },
         },
     };
 
@@ -730,6 +744,20 @@
             pickerTitle: '选择合约',
             pickerDismiss: '取消',
             catalog: '目录：{0} 个合约',
+            boards: { terminal: '交易终端', strategies: '策略', optimization: '优化', load: '负载' },
+            load: {
+                rate: '每秒成交笔数',
+                stop: '停止',
+                book: '订单簿',
+                note: '每条消息一笔成交，与套接字推送一致',
+                meters: {
+                    trades: '笔 / 秒',
+                    fps: '帧 / 秒',
+                    paints: '重绘 / 秒',
+                    nodes: '新建节点 / 秒',
+                    busy: '控件占用',
+                },
+            },
         },
     };
 

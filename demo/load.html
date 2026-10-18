@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+<link rel="icon" type="image/x-icon" href="./favicon.ico" />
+<title>sstradingcontrols · load</title>
+<link rel="stylesheet" href="../styles/theme.css" />
+<link rel="stylesheet" href="../styles/trading-controls.css" />
+<link rel="stylesheet" href="./demo.css" />
+</head>
+<body class="load-page">
+
+<header class="demo-header">
+  <span class="brand">sstradingcontrols <span class="sub">· StockSharp JS Trading Controls</span></span>
+  <nav class="demo-nav">
+    <a href="./index.html" data-board-link="terminal">Terminal</a>
+    <a href="./strategies.html" data-board-link="strategies">Strategies</a>
+    <a href="./optimization.html" data-board-link="optimization">Optimization</a>
+    <a href="./load.html" data-board-link="load">Load</a>
+  </nav>
+  <span class="spacer"></span>
+  <span id="rateLabel" class="load-label">Trades per second</span>
+  <div id="rates" class="load-rates" role="group"></div>
+  <button id="bookBtn" class="tbtn" type="button"><span class="dot"></span> Order book</button>
+  <button id="themeBtn" class="tbtn" type="button">&#9788; Light</button>
+  <button id="langBtn" class="tbtn" type="button">中文</button>
+</header>
+
+<!-- What the page costs while the feed runs. Counted by the page, not by the
+     controls: frames are the browser's, paints and created nodes are what a
+     MutationObserver sees land in the tape and the ladder, and busy is the time
+     spent inside the calls the feed makes into the controls. -->
+<section class="load-meters" aria-live="off">
+  <div class="load-meter"><span class="load-meter-value" data-meter="trades">0</span><span class="load-meter-label" data-meter-label="trades">trades / s</span></div>
+  <div class="load-meter"><span class="load-meter-value" data-meter="fps">0</span><span class="load-meter-label" data-meter-label="fps">frames / s</span></div>
+  <div class="load-meter"><span class="load-meter-value" data-meter="paints">0</span><span class="load-meter-label" data-meter-label="paints">paints / s</span></div>
+  <div class="load-meter"><span class="load-meter-value" data-meter="nodes">0</span><span class="load-meter-label" data-meter-label="nodes">nodes created / s</span></div>
+  <div class="load-meter"><span class="load-meter-value" data-meter="busy">0%</span><span class="load-meter-label" data-meter-label="busy">busy in the controls</span></div>
+</section>
+
+<main class="load-panels">
+  <div id="feedHost" class="load-panel"></div>
+  <div id="bookHost" class="load-panel" hidden></div>
+</main>
+
+<footer class="demo-statusbar">
+  <span class="status-left">demo host · no server, no network</span>
+  <span id="loadNote" class="load-note"></span>
+  <span class="status-right"></span>
+</footer>
+
+<script src="../dist/sstradingcontrols.js"></script>
+<script src="./i18n.js"></script>
+<script src="./load.js"></script>
+</body>
+</html>
