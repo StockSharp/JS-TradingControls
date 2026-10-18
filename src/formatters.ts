@@ -9,6 +9,12 @@
 // it.
 type Numeric = number | string | null | undefined;
 
+// One locale formatter each, built once. `toLocaleString` and
+// `toLocaleTimeString` build one on every call, and the tape formats a time
+// and a quantity for every row of every paint.
+const QUANTITY = new Intl.NumberFormat(undefined, { maximumFractionDigits: 8 });
+const CLOCK = new Intl.DateTimeFormat('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 /// Digits chosen from the magnitude of the price. A fixed two decimals
 /// collapses distinct ticks of a penny instrument onto the same "0.44" —
 /// on the Y axis, in the order book, in the price header, everywhere — while
@@ -33,14 +39,17 @@ export function formatQty(qty: Numeric): string {
     if (qty == null) return '--';
     const n = Number(qty);
     if (!isFinite(n)) return '--';
-    return n.toLocaleString(undefined, { maximumFractionDigits: 8 });
+    return QUANTITY.format(n);
 }
 
 /// Wall-clock time of day, 24h, seconds included — a trade blotter is read by
 /// eye against the tape, so the format is fixed rather than locale-driven.
 export function formatTime(dateStr: string | number | Date | null | undefined): string {
     const d = new Date(dateStr as string);
-    return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // What toLocaleTimeString answers for a time it cannot read; the formatter
+    // throws instead.
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return CLOCK.format(d);
 }
 
 /// A signed figure: profit carries an explicit `+` so a gain and a loss are
