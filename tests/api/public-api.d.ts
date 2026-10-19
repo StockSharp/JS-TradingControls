@@ -683,6 +683,8 @@ export declare class OrderBookWidget {
     rootEl: HTMLElement;
     asksEl: HTMLElement | null;
     bidsEl: HTMLElement | null;
+    bestAskEl: HTMLElement | null;
+    bestBidEl: HTMLElement | null;
     midEl: HTMLElement | null;
     spreadEl: HTMLElement | null;
     contentEl: HTMLElement | null;

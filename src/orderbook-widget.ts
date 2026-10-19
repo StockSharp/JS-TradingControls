@@ -97,6 +97,9 @@ export class OrderBookWidget {
     rootEl: HTMLElement;
     asksEl: HTMLElement | null;
     bidsEl: HTMLElement | null;
+    /// The best level of each side, against the mid line and outside the side's scrolling list.
+    bestAskEl: HTMLElement | null;
+    bestBidEl: HTMLElement | null;
     midEl: HTMLElement | null;
     spreadEl: HTMLElement | null;
     contentEl: HTMLElement | null;
@@ -182,12 +185,18 @@ export class OrderBookWidget {
                 makeElement('span', 'ob-col-total', {}, [host.t('Total')]),
             ]),
             makeElement('div', 'orderbook-content', { 'aria-live': 'polite', 'aria-atomic': 'false' }, [
-                makeElement('div', 'orderbook-asks', { 'aria-label': host.t('AskOrders') }, []),
+                makeElement('div', 'orderbook-ask-side', { 'aria-label': host.t('AskOrders') }, [
+                    makeElement('div', 'orderbook-asks', {}, []),
+                    makeElement('div', 'orderbook-best-ask', {}, []),
+                ]),
                 makeElement('div', 'orderbook-mid', { 'aria-label': host.t('MidPrice') }, [
                     makeElement('span', 'ob-mid-price', {}, ['--']),
                     makeElement('span', 'ob-mid-spread', { 'aria-live': 'polite' }, []),
                 ]),
-                makeElement('div', 'orderbook-bids', { 'aria-label': host.t('BidOrders') }, []),
+                makeElement('div', 'orderbook-bid-side', { 'aria-label': host.t('BidOrders') }, [
+                    makeElement('div', 'orderbook-best-bid', {}, []),
+                    makeElement('div', 'orderbook-bids', {}, []),
+                ]),
             ]),
             makeElement('div', 'ob-sentiment', { 'aria-label': host.t('OrderBookSentiment') }, [
                 makeElement('div', 'ob-sent-bid', {}, [
@@ -214,6 +223,8 @@ export class OrderBookWidget {
 
         this.asksEl = this.rootEl.querySelector('.orderbook-asks');
         this.bidsEl = this.rootEl.querySelector('.orderbook-bids');
+        this.bestAskEl = this.rootEl.querySelector('.orderbook-best-ask');
+        this.bestBidEl = this.rootEl.querySelector('.orderbook-best-bid');
         this.midEl = this.rootEl.querySelector('.ob-mid-price');
         this.spreadEl = this.rootEl.querySelector('.spread-label');
         this.contentEl = this.rootEl.querySelector('.orderbook-content');
@@ -694,9 +705,11 @@ export class OrderBookWidget {
                 painted,
             }));
         }
-        // The best level of each side sticks to the mid line, so it stays in sight however far its side is scrolled.
-        askRows[askRows.length - 1]?.classList.add('ob-best');
+        // The best level of each side stands against the mid line outside the side's list, so scrolling a side to
+        // deeper levels never takes it out of sight.
+        const bestAsk = askRows.pop();
         this.asksEl.replaceChildren(...askRows);
+        this.bestAskEl?.replaceChildren(...(bestAsk === undefined ? [] : [bestAsk]));
 
         running = 0;
         const bidRows: HTMLElement[] = [];
@@ -715,8 +728,9 @@ export class OrderBookWidget {
                 painted,
             }));
         }
-        bidRows[0]?.classList.add('ob-best');
+        const bestBid = bidRows.shift();
         this.bidsEl.replaceChildren(...bidRows);
+        this.bestBidEl?.replaceChildren(...(bestBid === undefined ? [] : [bestBid]));
 
         this._prevQuantities = painted;
 

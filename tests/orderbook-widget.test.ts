@@ -33,11 +33,17 @@ function orderBook(state: Record<string, unknown> = {}, room = 10) {
     return { widget, root: parent.childNodes[0] as FakeElement, calls, host };
 }
 
-/// The rendered levels of one side, as [price, qty, total] per row, top to
-/// bottom — which is the order the user reads them in.
-function levels(root: FakeElement, side: string): string[][] {
-    return root.querySelector(side)!.childNodes
-        .map(row => (row as FakeElement).childNodes.slice(0, 3).map(cell => cell.textContent));
+/// The rows of one side, top to bottom - the order the user reads them in: the asks' list and then the best ask
+/// against the mid line, the best bid against it and then the bids' list.
+function rows(root: FakeElement, side: 'asks' | 'bids'): FakeElement[] {
+    const list = root.querySelector(`.orderbook-${side}`)!.childNodes as FakeElement[];
+    const best = root.querySelector(side === 'asks' ? '.orderbook-best-ask' : '.orderbook-best-bid')!.childNodes as FakeElement[];
+    return side === 'asks' ? [...list, ...best] : [...best, ...list];
+}
+
+/// The rendered levels of one side, as [price, qty, total] per row, in reading order.
+function levels(root: FakeElement, side: 'asks' | 'bids'): string[][] {
+    return rows(root, side).map(row => row.childNodes.slice(0, 3).map(cell => cell.textContent));
 }
 
 function clickLevel(row: FakeElement, event: Partial<FakeEvent> = {}): void {
@@ -55,9 +61,11 @@ describe('OrderBookWidget builds its own panel', () => {
         assert.notEqual(root.querySelector('.panel-header .ob-symbol-label'), null);
         assert.notEqual(root.querySelector('.ob-depth-chart'), null);
         assert.notEqual(root.querySelector('.ob-col-headers'), null);
-        assert.notEqual(root.querySelector('.orderbook-content .orderbook-asks'), null);
+        assert.notEqual(root.querySelector('.orderbook-content .orderbook-ask-side .orderbook-asks'), null);
+        assert.notEqual(root.querySelector('.orderbook-content .orderbook-ask-side .orderbook-best-ask'), null);
         assert.notEqual(root.querySelector('.orderbook-content .orderbook-mid .ob-mid-price'), null);
-        assert.notEqual(root.querySelector('.orderbook-content .orderbook-bids'), null);
+        assert.notEqual(root.querySelector('.orderbook-content .orderbook-bid-side .orderbook-best-bid'), null);
+        assert.notEqual(root.querySelector('.orderbook-content .orderbook-bid-side .orderbook-bids'), null);
         assert.notEqual(root.querySelector('.ob-sentiment .ob-sent-bid'), null);
     });
 
@@ -68,7 +76,7 @@ describe('OrderBookWidget builds its own panel', () => {
             ['Price', 'Qty', 'Total']);
         assert.equal(root.querySelector('.ob-symbol-label')!.getAttribute('title'), 'ClickToChangeSymbol');
         assert.equal(root.querySelector('.ob-depth-selector')!.getAttribute('aria-label'), 'OrderBookDepth');
-        assert.equal(root.querySelector('.orderbook-asks')!.getAttribute('aria-label'), 'AskOrders');
+        assert.equal(root.querySelector('.orderbook-ask-side')!.getAttribute('aria-label'), 'AskOrders');
         assert.equal(root.querySelector('.ob-sentiment')!.getAttribute('aria-label'), 'OrderBookSentiment');
     });
 
@@ -131,11 +139,11 @@ describe('OrderBookWidget renders a book', () => {
 
         // Asks are painted worst-first so the best ask ends up against the mid
         // line, while the total still accumulates from the best one.
-        assert.deepStrictEqual(levels(root, '.orderbook-asks'), [
+        assert.deepStrictEqual(levels(root, 'asks'), [
             ['101.00', '6', '8'],
             ['100.00', '2', '2'],
         ]);
-        assert.deepStrictEqual(levels(root, '.orderbook-bids'), [
+        assert.deepStrictEqual(levels(root, 'bids'), [
             ['99.00', '3', '3'],
             ['98.00', '1', '4'],
         ]);
@@ -144,22 +152,23 @@ describe('OrderBookWidget renders a book', () => {
         assert.equal(root.querySelector('.spread-label')!.textContent, 'Spread: 1.00');
     });
 
-    it('marks the best level of each side, which the stylesheet keeps in sight however its side is scrolled', () => {
+    it('keeps the best level of each side outside its scrolling list, against the mid line', () => {
         const { widget, root } = orderBook();
         widget.applyFrame(SNAPSHOT);
 
-        const best = (side: string) => root.querySelector(side)!.childNodes
-            .map(row => (row as FakeElement).classList.contains('ob-best'));
+        const prices = (selector: string) => root.querySelector(selector)!.childNodes
+            .map(row => (row as FakeElement).querySelector('.price')!.textContent);
 
-        assert.deepStrictEqual(best('.orderbook-asks'), [false, true], 'the best ask is the row against the mid line');
-        assert.deepStrictEqual(best('.orderbook-bids'), [true, false]);
+        assert.deepStrictEqual(prices('.orderbook-best-ask'), ['100.00']);
+        assert.deepStrictEqual(prices('.orderbook-asks'), ['101.00'], 'the list scrolls the deeper levels alone');
+        assert.deepStrictEqual(prices('.orderbook-best-bid'), ['99.00']);
+        assert.deepStrictEqual(prices('.orderbook-bids'), ['98.00']);
     });
 
     it('measures the bar and the tint per level instead of styling them itself', () => {
         const { widget, root } = orderBook();
         widget.applyFrame(SNAPSHOT);
-        const bestBid = root.querySelector('.orderbook-bids')!.childNodes[0] as FakeElement;
-        const worstBid = root.querySelector('.orderbook-bids')!.childNodes[1] as FakeElement;
+        const [bestBid, worstBid] = rows(root, 'bids');
 
         // The bar is a share of the largest level on its OWN side.
         assert.equal(bestBid.style.getPropertyValue('--t-ob-bar'), '100%');
@@ -190,17 +199,15 @@ describe('OrderBookWidget renders a book', () => {
         });
 
         // More size bid is pressure up, more size offered is pressure down.
-        assert.equal((root.querySelector('.orderbook-bids')!.childNodes[0] as FakeElement).className,
-            'ob-row bid flash-green ob-best');
-        assert.equal((root.querySelector('.orderbook-asks')!.childNodes[1] as FakeElement).className,
-            'ob-row ask flash-red ob-best');
+        assert.equal(rows(root, 'bids')[0].className, 'ob-row bid flash-green');
+        assert.equal(rows(root, 'asks')[1].className, 'ob-row ask flash-red');
     });
 
     it('clips to the depth the host says it has room for', () => {
         const { widget, root } = orderBook({ depth: 10 }, 1);
         assert.equal(widget.getDepth(), 1);
         widget.applyFrame(SNAPSHOT);
-        assert.equal(levels(root, '.orderbook-bids').length, 1);
+        assert.equal(levels(root, 'bids').length, 1);
 
         // A user pressing the deeper button still gets what fits.
         const deeper = root.querySelectorAll('.btn-ob-depth')[1];
@@ -221,8 +228,8 @@ describe('OrderBookWidget clicks', () => {
         const { widget, root, calls } = orderBook();
         widget.applyFrame(SNAPSHOT);
 
-        clickLevel(root.querySelector('.orderbook-bids')!.childNodes[0] as FakeElement);
-        clickLevel(root.querySelector('.orderbook-asks')!.childNodes[1] as FakeElement, { ctrlKey: true } as Partial<FakeEvent>);
+        clickLevel(rows(root, 'bids')[0]);
+        clickLevel(rows(root, 'asks')[1], { ctrlKey: true } as Partial<FakeEvent>);
 
         // Clicking a bid is where a seller meets the market, and the other way
         // round — so a bid row reports side 1 and an ask row side 0.
@@ -253,7 +260,7 @@ describe('OrderBookWidget applies the wire', () => {
             bids: [{ price: 98, quantity: 0 }, { price: 97, quantity: 9 }],
             asks: [],
         });
-        assert.deepStrictEqual(levels(root, '.orderbook-bids').map(row => row[0]), ['99.00', '97.00']);
+        assert.deepStrictEqual(levels(root, 'bids').map(row => row[0]), ['99.00', '97.00']);
     });
 
     it('asks for a fresh snapshot rather than trusting a diff after a gap', () => {
@@ -313,14 +320,14 @@ describe('OrderBookWidget applies the wire', () => {
         ];
         widget.applyFrame(SNAPSHOT);
 
-        const bids = root.querySelector('.orderbook-bids')!;
-        const badged = bids.childNodes[0] as FakeElement;
-        assert.equal(badged.className, 'ob-row bid own ob-best');
+        const bids = rows(root, 'bids');
+        const badged = bids[0];
+        assert.equal(badged.className, 'ob-row bid own');
         assert.equal(badged.querySelector('.own-badge')!.textContent, '2');
         assert.equal(badged.querySelector('.own-badge')!.getAttribute('title'), 'YourOrder');
         // A cancelled order rests on nothing, and another instrument is another
         // ladder's business.
-        assert.equal((bids.childNodes[1] as FakeElement).querySelector('.own-badge'), null);
+        assert.equal(bids[1].querySelector('.own-badge'), null);
     });
 });
 
