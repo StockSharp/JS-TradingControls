@@ -1255,8 +1255,9 @@
 
 /* A field the current order type does not use, and the take-profit block while
    it is switched off. The control toggles this class rather than a display
-   style, so what a field looks like when it is away stays here. */
-.oe-field-hidden { display: none; }
+   style, so what a field looks like when it is away stays here; it outranks the
+   display every part of the form gives itself, wherever that rule stands. */
+.oe-field-hidden { display: none !important; }
 
 .oe-input-grp {
     display: flex;
