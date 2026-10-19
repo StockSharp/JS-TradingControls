@@ -789,6 +789,31 @@
 .ob-row.flash-green { animation: flashGreen 0.5s ease; }
 .ob-row.flash-red { animation: flashRed 0.5s ease; }
 
+/* The best level of each side stays in sight however far its side is scrolled: it sticks to the edge its side shares
+   with the mid line, its tint laid over the panel so the rows scrolling under it do not show through. */
+.orderbook-asks .ob-row.ob-best,
+.orderbook-bids .ob-row.ob-best {
+    position: sticky;
+    z-index: 1;
+}
+
+.orderbook-asks .ob-row.ob-best {
+    bottom: 0;
+    background: linear-gradient(color-mix(in srgb, var(--t-red) var(--t-ob-heat), transparent),
+        color-mix(in srgb, var(--t-red) var(--t-ob-heat), transparent)), var(--t-bg);
+}
+
+.orderbook-bids .ob-row.ob-best {
+    top: 0;
+    background: linear-gradient(color-mix(in srgb, var(--t-green) var(--t-ob-heat), transparent),
+        color-mix(in srgb, var(--t-green) var(--t-ob-heat), transparent)), var(--t-bg);
+}
+
+.orderbook-asks .ob-row.ob-best:hover,
+.orderbook-bids .ob-row.ob-best:hover {
+    background: linear-gradient(var(--t-hover), var(--t-hover)), var(--t-bg);
+}
+
 /* A level this session has size resting on: a stripe down the outside of the
    row, and the resting quantity inside the size cell. */
 .ob-row.own.bid { box-shadow: inset 3px 0 0 var(--t-green); }
@@ -856,6 +881,8 @@
 .orderbook-panel.ob-invert .orderbook-content { flex-direction: column-reverse; }
 .orderbook-panel.ob-invert .orderbook-asks,
 .orderbook-panel.ob-invert .orderbook-bids { flex-direction: column-reverse; }
+.orderbook-panel.ob-invert .orderbook-asks .ob-row.ob-best { top: 0; bottom: auto; }
+.orderbook-panel.ob-invert .orderbook-bids .ob-row.ob-best { top: auto; bottom: 0; }
 
 /* Buy-versus-sell strip along the bottom. One measured property splits it — the
    bid half takes it, the ask half takes what is left — so the two can never

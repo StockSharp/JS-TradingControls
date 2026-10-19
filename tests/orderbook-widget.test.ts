@@ -144,6 +144,17 @@ describe('OrderBookWidget renders a book', () => {
         assert.equal(root.querySelector('.spread-label')!.textContent, 'Spread: 1.00');
     });
 
+    it('marks the best level of each side, which the stylesheet keeps in sight however its side is scrolled', () => {
+        const { widget, root } = orderBook();
+        widget.applyFrame(SNAPSHOT);
+
+        const best = (side: string) => root.querySelector(side)!.childNodes
+            .map(row => (row as FakeElement).classList.contains('ob-best'));
+
+        assert.deepStrictEqual(best('.orderbook-asks'), [false, true], 'the best ask is the row against the mid line');
+        assert.deepStrictEqual(best('.orderbook-bids'), [true, false]);
+    });
+
     it('measures the bar and the tint per level instead of styling them itself', () => {
         const { widget, root } = orderBook();
         widget.applyFrame(SNAPSHOT);
@@ -180,9 +191,9 @@ describe('OrderBookWidget renders a book', () => {
 
         // More size bid is pressure up, more size offered is pressure down.
         assert.equal((root.querySelector('.orderbook-bids')!.childNodes[0] as FakeElement).className,
-            'ob-row bid flash-green');
+            'ob-row bid flash-green ob-best');
         assert.equal((root.querySelector('.orderbook-asks')!.childNodes[1] as FakeElement).className,
-            'ob-row ask flash-red');
+            'ob-row ask flash-red ob-best');
     });
 
     it('clips to the depth the host says it has room for', () => {
@@ -304,7 +315,7 @@ describe('OrderBookWidget applies the wire', () => {
 
         const bids = root.querySelector('.orderbook-bids')!;
         const badged = bids.childNodes[0] as FakeElement;
-        assert.equal(badged.className, 'ob-row bid own');
+        assert.equal(badged.className, 'ob-row bid own ob-best');
         assert.equal(badged.querySelector('.own-badge')!.textContent, '2');
         assert.equal(badged.querySelector('.own-badge')!.getAttribute('title'), 'YourOrder');
         // A cancelled order rests on nothing, and another instrument is another

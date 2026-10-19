@@ -694,6 +694,8 @@ export class OrderBookWidget {
                 painted,
             }));
         }
+        // The best level of each side sticks to the mid line, so it stays in sight however far its side is scrolled.
+        askRows[askRows.length - 1]?.classList.add('ob-best');
         this.asksEl.replaceChildren(...askRows);
 
         running = 0;
@@ -713,6 +715,7 @@ export class OrderBookWidget {
                 painted,
             }));
         }
+        bidRows[0]?.classList.add('ob-best');
         this.bidsEl.replaceChildren(...bidRows);
 
         this._prevQuantities = painted;
