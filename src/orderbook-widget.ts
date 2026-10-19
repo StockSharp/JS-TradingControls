@@ -678,36 +678,32 @@ export class OrderBookWidget {
         const own = this._ownQuantities();
         const painted = new Map<string, number>();
 
-        // Asks are rendered worst-first so the best ask ends up next to the mid
-        // line, while the cumulative total runs the other way — the best ask
-        // reads `qty == total` and the sum grows as the eye moves away from the
-        // spread.
-        const askTotals: number[] = [];
+        // Both sides list their levels nearest the spread first, and the
+        // stylesheet lays the asks out upward from the mid line, so each list
+        // opens on the levels nearest the spread. The cumulative total grows as
+        // the eye moves away from it: the best ask reads `qty == total`.
         let running = 0;
+        const askRows: HTMLElement[] = [];
         for (const level of visibleAsks) {
             running += level.quantity;
-            askTotals.push(running);
-        }
-        const askRows: HTMLElement[] = [];
-        for (let i = visibleAsks.length - 1; i >= 0; i--) {
-            askRows.push(this._levelRow(visibleAsks[i], {
+            askRows.push(this._levelRow(level, {
                 rowClass: 'ob-row ask',
                 orderSide: 'buy',
-                key: `a_${visibleAsks[i].price}`,
-                cumulative: askTotals[i],
-                barPct: (visibleAsks[i].quantity / maxAsk) * 100,
-                heatPct: HEAT_FLOOR_PCT + HEAT_RANGE_PCT * (visibleAsks[i].quantity / maxBoth),
+                key: `a_${level.price}`,
+                cumulative: running,
+                barPct: (level.quantity / maxAsk) * 100,
+                heatPct: HEAT_FLOOR_PCT + HEAT_RANGE_PCT * (level.quantity / maxBoth),
                 // More size on the offer is pressure downward, so a growing ask
                 // level flashes in the falling colour.
                 growthClass: 'flash-red',
                 shrinkClass: 'flash-green',
-                ownQuantity: own.asks.get(OrderBookWidget._priceKey(visibleAsks[i].price)),
+                ownQuantity: own.asks.get(OrderBookWidget._priceKey(level.price)),
                 painted,
             }));
         }
         // The best level of each side stands against the mid line outside the side's list, so scrolling a side to
         // deeper levels never takes it out of sight.
-        const bestAsk = askRows.pop();
+        const bestAsk = askRows.shift();
         this.asksEl.replaceChildren(...askRows);
         this.bestAskEl?.replaceChildren(...(bestAsk === undefined ? [] : [bestAsk]));
 

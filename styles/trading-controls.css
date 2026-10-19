@@ -742,6 +742,8 @@
     max-height: calc(50% - 12px);
 }
 
+/* Each list holds its levels nearest the spread first and runs away from the mid
+   line, so it opens on them: the asks above the line run upward. */
 .orderbook-asks,
 .orderbook-bids {
     flex: 0 1 auto;
@@ -750,6 +752,8 @@
     min-height: 0;
     overflow-y: auto;
 }
+
+.orderbook-asks { flex-direction: column-reverse; }
 
 .orderbook-best-ask,
 .orderbook-best-bid {
@@ -870,11 +874,11 @@
 /* Inverted sides — the bid block floats above the mid line. Each block reverses
    internally as well, so the levels nearest the spread stay nearest the mid
    line in both orders. */
-.orderbook-panel.ob-invert .orderbook-content { flex-direction: column-reverse; }
+.orderbook-panel.ob-invert .orderbook-content,
 .orderbook-panel.ob-invert .orderbook-ask-side,
 .orderbook-panel.ob-invert .orderbook-bid-side,
-.orderbook-panel.ob-invert .orderbook-asks,
 .orderbook-panel.ob-invert .orderbook-bids { flex-direction: column-reverse; }
+.orderbook-panel.ob-invert .orderbook-asks { flex-direction: column; }
 
 /* Buy-versus-sell strip along the bottom. One measured property splits it — the
    bid half takes it, the ask half takes what is left — so the two can never

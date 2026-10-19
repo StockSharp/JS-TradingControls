@@ -33,12 +33,13 @@ function orderBook(state: Record<string, unknown> = {}, room = 10) {
     return { widget, root: parent.childNodes[0] as FakeElement, calls, host };
 }
 
-/// The rows of one side, top to bottom - the order the user reads them in: the asks' list and then the best ask
-/// against the mid line, the best bid against it and then the bids' list.
+/// The rows of one side, top to bottom - the order the user reads them in. Each list holds its levels nearest the
+/// spread first and the stylesheet lays the asks' list out upward from the mid line, so the asks read as their list
+/// reversed and then the best ask; the bids read as the best bid and then their list.
 function rows(root: FakeElement, side: 'asks' | 'bids'): FakeElement[] {
     const list = root.querySelector(`.orderbook-${side}`)!.childNodes as FakeElement[];
     const best = root.querySelector(side === 'asks' ? '.orderbook-best-ask' : '.orderbook-best-bid')!.childNodes as FakeElement[];
-    return side === 'asks' ? [...list, ...best] : [...best, ...list];
+    return side === 'asks' ? [...list].reverse().concat(best) : [...best, ...list];
 }
 
 /// The rendered levels of one side, as [price, qty, total] per row, in reading order.
@@ -163,6 +164,23 @@ describe('OrderBookWidget renders a book', () => {
         assert.deepStrictEqual(prices('.orderbook-asks'), ['101.00'], 'the list scrolls the deeper levels alone');
         assert.deepStrictEqual(prices('.orderbook-best-bid'), ['99.00']);
         assert.deepStrictEqual(prices('.orderbook-bids'), ['98.00']);
+    });
+
+    it('holds the levels nearest the spread first in both lists, the end each list opens at', () => {
+        const { widget, root } = orderBook();
+        widget.applyFrame({
+            ...SNAPSHOT,
+            bids: [{ price: 99, quantity: 3 }, { price: 98, quantity: 1 }, { price: 97, quantity: 2 }],
+            asks: [{ price: 100, quantity: 2 }, { price: 101, quantity: 6 }, { price: 102, quantity: 1 }],
+        });
+
+        const prices = (selector: string) => root.querySelector(selector)!.childNodes
+            .map(row => (row as FakeElement).querySelector('.price')!.textContent);
+
+        assert.deepStrictEqual(prices('.orderbook-asks'), ['101.00', '102.00']);
+        assert.deepStrictEqual(prices('.orderbook-bids'), ['98.00', '97.00']);
+        assert.deepStrictEqual(levels(root, 'asks').map(row => row[0]), ['102.00', '101.00', '100.00'],
+            'read top to bottom, the asks still fall towards the mid line');
     });
 
     it('measures the bar and the tint per level instead of styling them itself', () => {
