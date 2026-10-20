@@ -104,6 +104,9 @@ export class TradeFeedWidget {
     _resizeObserver: ResizeObserver | null;
     _activeSymbol: string | null;
     _extraSymbols: Set<string>;
+    /// Set once the feed has given back what it held: its close button disposes it, and so does a host that disposes
+    /// what it closes.
+    _disposed: boolean;
 
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps): TradeFeedWidget {
         // Assert before building: the markup below is localized through the
@@ -194,6 +197,7 @@ export class TradeFeedWidget {
         this._bubbleHits = [];
         this._canvasSize = null;
         this._resizeObserver = null;
+        this._disposed = false;
 
         this._marketGrid = this._makeGrid('.tf-market');
         this._myGrid = this._makeGrid('.tf-my');
@@ -242,6 +246,8 @@ export class TradeFeedWidget {
     }
 
     dispose(): void {
+        if (this._disposed) return;
+        this._disposed = true;
         try { this._resizeObserver?.disconnect(); } catch { /* already torn down */ }
         // The grids hold document-level listeners (the copy shortcut) that
         // outlive a removed subtree — they have to be told, not just detached.
@@ -250,7 +256,7 @@ export class TradeFeedWidget {
         // Drop this feed's share of every extra so a symbol nobody else watches
         // stops streaming — the client refcounts, so a neighbour keeps its own.
         for (const symbol of this._extraSymbols)
-            void this._host.trading.marketData.removeSymbol(symbol).catch(() => { });
+            void this._host.trading.marketData.removeSymbol(symbol, MarketDataLevels.Tape).catch(() => { });
         this._host.unregister(this);
         try { this.rootEl.remove(); } catch { /* already detached */ }
     }
@@ -446,7 +452,7 @@ export class TradeFeedWidget {
         const sym = String(symbol).toUpperCase();
         if (!this._extraSymbols.has(sym)) return;
         this._extraSymbols.delete(sym);
-        try { await this._host.trading.marketData.removeSymbol(sym); } catch { /* socket race */ }
+        try { await this._host.trading.marketData.removeSymbol(sym, MarketDataLevels.Tape); } catch { /* socket race */ }
         this.trades = this.trades.filter(t => t.symbol !== sym);
         this.bubbleTrades = this.bubbleTrades.filter(t => t.symbol !== sym);
         this._marketGrid?.setRows([...this.trades]);

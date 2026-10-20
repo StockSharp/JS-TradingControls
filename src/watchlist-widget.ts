@@ -60,6 +60,9 @@ export class WatchlistWidget {
     // Symbols this widget currently holds a live-quote subscription for.
     // Re-synced from the visible list on every render — see _syncSubs.
     _subscribedSyms: Set<string>;
+    /// Rows waiting for their turn in the staggered subscribe, by symbol. A row that leaves the list first is
+    /// cancelled here rather than given back: it holds nothing yet.
+    _pendingSubs: Map<string, ReturnType<typeof setTimeout>>;
     _closeBtn: HTMLElement | null;
     _exportBtn: HTMLElement | null;
     _grid: DataGrid<InstrumentRow> | null;
@@ -126,6 +129,7 @@ export class WatchlistWidget {
         this.search = '';
         this.currentSymbol = null;
         this._subscribedSyms = new Set();
+        this._pendingSubs = new Map();
         this.wsClient = this._host.trading.marketData;
 
         this.bodyEl = this.rootEl.querySelector('.watchlist-body');
@@ -186,8 +190,10 @@ export class WatchlistWidget {
         // Release every live subscription this widget held — the market-data
         // client refcounts them, so another control's subscription survives if
         // it happened to share a symbol with us.
+        for (const timer of this._pendingSubs.values()) clearTimeout(timer);
+        this._pendingSubs.clear();
         for (const sym of this._subscribedSyms) {
-            try { void this.wsClient?.removeSymbol(sym); } catch { /* socket may be torn down */ }
+            try { void this.wsClient?.removeSymbol(sym, MarketDataLevels.Quotes); } catch { /* socket may be torn down */ }
         }
         this._subscribedSyms.clear();
         this._host.unregister(this);
@@ -465,9 +471,15 @@ export class WatchlistWidget {
         if (!this.wsClient) return;
         const desired = new Set(this._visible().map(i => String(i.symbol).split('@')[0]));
 
+        for (const [sym, timer] of this._pendingSubs) {
+            if (!desired.has(sym)) {
+                clearTimeout(timer);
+                this._pendingSubs.delete(sym);
+            }
+        }
         for (const sym of this._subscribedSyms) {
             if (!desired.has(sym)) {
-                try { void this.wsClient.removeSymbol(sym); } catch { /* socket race */ }
+                try { void this.wsClient.removeSymbol(sym, MarketDataLevels.Quotes); } catch { /* socket race */ }
                 this._subscribedSyms.delete(sym);
             }
         }
@@ -478,11 +490,12 @@ export class WatchlistWidget {
         // feeling instant to the user.
         let i = 0;
         for (const sym of desired) {
-            if (this._subscribedSyms.has(sym)) continue;
-            this._subscribedSyms.add(sym);
-            setTimeout(() => {
+            if (this._subscribedSyms.has(sym) || this._pendingSubs.has(sym)) continue;
+            this._pendingSubs.set(sym, setTimeout(() => {
+                this._pendingSubs.delete(sym);
+                this._subscribedSyms.add(sym);
                 try { void this.wsClient.addSymbol(sym, MarketDataLevels.Quotes); } catch { /* socket race */ }
-            }, i * 80);
+            }, i * 80));
             i++;
         }
     }

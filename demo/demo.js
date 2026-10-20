@@ -605,13 +605,15 @@
     };
 
     // Refcounted the way the real client is: two controls watching one symbol hold
-    // one subscription between them, and neither can unsubscribe the other.
+    // one subscription between them, and neither can unsubscribe the other. Counted
+    // per symbol and level, because a control gives back the level it took.
     const subscriptions = new Map();
 
     const marketData = {
         addSymbol(symbol, level) {
-            const count = (subscriptions.get(symbol) || 0) + 1;
-            subscriptions.set(symbol, count);
+            const key = `${symbol} ${level}`;
+            const count = (subscriptions.get(key) || 0) + 1;
+            subscriptions.set(key, count);
             logLine('dim', `marketData.addSymbol("${symbol}", "${level}") — refcount ${count}`, HOST_SOURCE);
             // A subscription that asked for the depth is answered with a
             // snapshot, which is what makes the diffs after it mean anything.
@@ -620,11 +622,12 @@
             if (level === MarketDataLevels.Full) setTimeout(() => sendBookSnapshot(symbol), 60);
             return Promise.resolve(true);
         },
-        removeSymbol(symbol) {
-            const count = Math.max(0, (subscriptions.get(symbol) || 0) - 1);
-            if (count === 0) subscriptions.delete(symbol);
-            else subscriptions.set(symbol, count);
-            logLine('dim', `marketData.removeSymbol("${symbol}") — refcount ${count}`, HOST_SOURCE);
+        removeSymbol(symbol, level) {
+            const key = `${symbol} ${level}`;
+            const count = Math.max(0, (subscriptions.get(key) || 0) - 1);
+            if (count === 0) subscriptions.delete(key);
+            else subscriptions.set(key, count);
+            logLine('dim', `marketData.removeSymbol("${symbol}", "${level}") — refcount ${count}`, HOST_SOURCE);
             return Promise.resolve(true);
         },
         resubscribe(symbol, level) {

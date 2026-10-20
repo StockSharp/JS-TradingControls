@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { asDom, asFake, el, installFakeDom, type FakeElement } from './fake-dom.js';
@@ -245,5 +245,62 @@ describe('WatchlistWidget: a catalog longer than a page', () => {
         pane.dispatchEvent({ type: 'scroll', target: pane });
 
         assert.equal(wlRows(root).length, page + 5, 'the rest of the catalog is painted once the reader gets near it');
+    });
+});
+
+describe('WatchlistWidget subscriptions', () => {
+    /// A panel whose rows subscribe on a staggered clock the test moves, and the requests they make once it settles.
+    async function staggered(): Promise<{ widget: Watchlist; calls: string[] }> {
+        const { widget, host } = watchlistPanel();
+        // The constructor's own load renders again once it settles; the rows it shows are the same.
+        await new Promise(resolve => setImmediate(resolve));
+        const calls: string[] = [];
+        host.trading.marketData.addSymbol = (symbol: string, level: string) => { calls.push(`add ${symbol} ${level}`); return Promise.resolve(); };
+        host.trading.marketData.removeSymbol = (symbol: string, level: string) => { calls.push(`remove ${symbol} ${level}`); return Promise.resolve(); };
+        return { widget, calls };
+    }
+
+    it('gives back a row that leaves the list at the quotes level it took', async () => {
+        mock.timers.enable({ apis: ['setTimeout'] });
+        try {
+            const { widget, calls } = await staggered();
+            mock.timers.tick(1000);
+
+            widget.filter = 'alt';
+            widget._render();
+
+            assert.deepStrictEqual(calls.filter(c => c.startsWith('remove')).sort(), ['remove BTC l1only', 'remove ETH l1only']);
+        } finally {
+            mock.timers.reset();
+        }
+    });
+
+    it('a row that leaves the list before its turn to subscribe gives back nothing and takes nothing later', async () => {
+        mock.timers.enable({ apis: ['setTimeout'] });
+        try {
+            const { widget, calls } = await staggered();
+
+            widget.filter = 'alt';
+            widget._render();
+            mock.timers.tick(1000);
+
+            assert.deepStrictEqual(calls, ['add SOL l1only'], 'a release before the subscribe takes another holder\'s reference');
+        } finally {
+            mock.timers.reset();
+        }
+    });
+
+    it('closed before its rows subscribe, it gives back nothing and takes nothing later', async () => {
+        mock.timers.enable({ apis: ['setTimeout'] });
+        try {
+            const { widget, calls } = await staggered();
+
+            widget.dispose();
+            mock.timers.tick(1000);
+
+            assert.deepStrictEqual(calls, []);
+        } finally {
+            mock.timers.reset();
+        }
     });
 });

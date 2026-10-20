@@ -718,6 +718,8 @@ export declare class OrderBookWidget {
     _asksByPrice: Map<number, number>;
     _lastSequence: number;
     _currentSymbol: string | null;
+    _subscribedSymbol: string | null;
+    _disposed: boolean;
     _followsActive: boolean;
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OrderBookDeps): OrderBookWidget;
     static _buildRoot(host: TradingHost): HTMLElement;
@@ -1213,6 +1215,7 @@ export declare class TradeFeedWidget {
     _resizeObserver: ResizeObserver | null;
     _activeSymbol: string | null;
     _extraSymbols: Set<string>;
+    _disposed: boolean;
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps): TradeFeedWidget;
     static _buildRoot(host: TradingHost, ownTradesTab: boolean): HTMLElement;
     constructor(rootEl: HTMLElement, state: Record<string, unknown>, deps: TradeFeedDeps);
@@ -1375,7 +1378,7 @@ export declare const MarketDataLevels: {
 export type MarketDataLevel = typeof MarketDataLevels[keyof typeof MarketDataLevels];
 export interface MarketDataClient {
     addSymbol(symbol: string, level: MarketDataLevel): Promise<unknown>;
-    removeSymbol(symbol: string): Promise<unknown>;
+    removeSymbol(symbol: string, level: MarketDataLevel): Promise<unknown>;
     resubscribe(symbol: string, level: MarketDataLevel): Promise<void>;
     getOrders(): OrderRow[];
 }
@@ -1440,6 +1443,7 @@ export declare class WatchlistWidget {
     _host: TradingHost;
     _deps: WatchlistDeps;
     _subscribedSyms: Set<string>;
+    _pendingSubs: Map<string, ReturnType<typeof setTimeout>>;
     _closeBtn: HTMLElement | null;
     _exportBtn: HTMLElement | null;
     _grid: DataGrid<InstrumentRow> | null;

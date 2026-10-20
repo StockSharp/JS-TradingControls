@@ -31,8 +31,8 @@ function tradeFeedPanel(state: Record<string, unknown> = {}, ownTradesTab = true
         subscriptions.push({ op: 'add', symbol, level });
         return Promise.resolve(true);
     };
-    host.trading.marketData.removeSymbol = (symbol) => {
-        subscriptions.push({ op: 'remove', symbol, level: '' });
+    host.trading.marketData.removeSymbol = (symbol, level) => {
+        subscriptions.push({ op: 'remove', symbol, level });
         return Promise.resolve(true);
     };
     host.trading.pickInstrument = (onPicked) => picked.push(onPicked);
@@ -253,7 +253,7 @@ describe('TradeFeedWidget: pinned extras', () => {
         click(button(root, '.tf-extra-rm'));
         await Promise.resolve();
 
-        assert.deepStrictEqual(subscriptions, [{ op: 'remove', symbol: 'ETH@IMEX', level: '' }]);
+        assert.deepStrictEqual(subscriptions, [{ op: 'remove', symbol: 'ETH@IMEX', level: 'tape' }]);
         assert.deepStrictEqual(widget.getExtraSymbols(), []);
         assert.equal(root.querySelector('.tf-extras')!.getAttribute('hidden'), '');
         assert.equal(widget.trades.some(t => t.symbol === 'ETH@IMEX'), false);
@@ -272,7 +272,7 @@ describe('TradeFeedWidget: pinned extras', () => {
         const { widget, subscriptions } = tradeFeedPanel({ extras: ['ETH@IMEX'] });
         subscriptions.length = 0;
         widget.dispose();
-        assert.deepStrictEqual(subscriptions, [{ op: 'remove', symbol: 'ETH@IMEX', level: '' }]);
+        assert.deepStrictEqual(subscriptions, [{ op: 'remove', symbol: 'ETH@IMEX', level: 'tape' }]);
         assert.equal(resizeObservers.at(-1)!.disconnected, true);
     });
 });
@@ -466,5 +466,18 @@ describe('TradeFeedWidget prices', () => {
         widget.addTrade({ symbol: 'BTC@IMEX', side: 'Buy', price: 82146.12, quantity: 1, time: '2026-04-30T12:00:04Z' });
 
         assert.equal(cell(rows(root)[0]!, 'price').textContent, '82146.12');
+    });
+});
+
+describe('TradeFeedWidget subscriptions on close', () => {
+    it('gives back each pinned instrument once when closed from its own button, as a host that disposes on close does', async () => {
+        const { widget, root, host, subscriptions } = tradeFeedPanel();
+        host.close = () => widget.dispose();
+        await widget.addExtraSymbol('ETH@IMEX');
+
+        click(button(root, '.panel-close-btn'));
+
+        assert.deepStrictEqual(subscriptions.filter(s => s.op === 'remove').map(s => s.symbol), ['ETH@IMEX'],
+            'a second release took the reference another panel holds');
     });
 });

@@ -519,3 +519,59 @@ describe('OrderBookWidget frames', () => {
         }
     });
 });
+
+describe('OrderBookWidget subscriptions', () => {
+    /// The ladder's requests to the host's market data, in order.
+    function recorded(host: ReturnType<typeof fakeHost>): string[] {
+        const calls: string[] = [];
+        host.trading.marketData.addSymbol = (symbol: string, level: string) => { calls.push(`add ${symbol} ${level}`); return Promise.resolve(); };
+        host.trading.marketData.removeSymbol = (symbol: string, level: string) => { calls.push(`remove ${symbol} ${level}`); return Promise.resolve(); };
+        return calls;
+    }
+
+    it('releases on close only a subscription it took, not the symbol a frame showed it', () => {
+        const { widget, host } = orderBook();
+        const calls = recorded(host);
+
+        widget.applyFrame(SNAPSHOT);
+        widget.dispose();
+
+        assert.deepStrictEqual(calls, [], 'the ladder dropped a subscription the page holds for its chart and tape');
+    });
+
+    it('takes a subscription of its own when the host names the symbol a frame already showed it', () => {
+        const { widget, host } = orderBook();
+        const calls = recorded(host);
+
+        widget.applyFrame(SNAPSHOT);
+        widget.setSymbol(SYMBOL);
+        widget.dispose();
+
+        assert.deepStrictEqual(calls, [`add ${SYMBOL} full`, `remove ${SYMBOL} full`]);
+    });
+
+    it('moves its subscription from one symbol to the next and releases the last on close', () => {
+        const { widget, host } = orderBook();
+        const calls = recorded(host);
+
+        widget.setSymbol('AAA@X');
+        widget.setSymbol('BBB@X');
+        widget.dispose();
+
+        assert.deepStrictEqual(calls, ['add AAA@X full', 'remove AAA@X full', 'add BBB@X full', 'remove BBB@X full']);
+    });
+});
+
+describe('OrderBookWidget dispose', () => {
+    it('gives its subscription back once however often it is disposed', () => {
+        const { widget, host } = orderBook();
+        const removed: string[] = [];
+        host.trading.marketData.removeSymbol = (symbol: string, level: string) => { removed.push(`${symbol} ${level}`); return Promise.resolve(); };
+
+        widget.setSymbol(SYMBOL);
+        widget.dispose();
+        widget.dispose();
+
+        assert.deepStrictEqual(removed, [`${SYMBOL} full`]);
+    });
+});

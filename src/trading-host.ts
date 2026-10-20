@@ -154,11 +154,13 @@ export const MarketDataLevels = {
 export type MarketDataLevel = typeof MarketDataLevels[keyof typeof MarketDataLevels];
 
 /// The live market-data connection. `addSymbol` / `removeSymbol` are
-/// refcounted by the implementation, so two controls watching one symbol hold
-/// one subscription between them and neither can unsubscribe the other.
+/// refcounted by the implementation for each kind of data a level brings, so
+/// two controls watching one symbol hold one subscription between them, neither
+/// can unsubscribe the other, and the one asking for more gets it. A control
+/// gives back exactly what it took: the same symbol at the same level, once.
 export interface MarketDataClient {
     addSymbol(symbol: string, level: MarketDataLevel): Promise<unknown>;
-    removeSymbol(symbol: string): Promise<unknown>;
+    removeSymbol(symbol: string, level: MarketDataLevel): Promise<unknown>;
     /// Make the server resend `symbol` from scratch, without touching the
     /// refcount. A control applying diffs against a sequence cannot recover
     /// from a missed frame on its own — the only cure is a fresh snapshot, and

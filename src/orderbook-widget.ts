@@ -136,6 +136,11 @@ export class OrderBookWidget {
     _asksByPrice: Map<number, number>;
     _lastSequence: number;
     _currentSymbol: string | null;
+    /// The symbol this ladder holds a market-data subscription for: the one it asked for, which is not always the one
+    /// it shows - a following ladder takes its symbol from the first frame it is handed.
+    _subscribedSymbol: string | null;
+    /// Set once the ladder has given back its subscription, so a second dispose gives back nothing more.
+    _disposed: boolean;
     _followsActive: boolean;
 
     static create(hostEl: HTMLElement, state: Record<string, unknown>, deps: OrderBookDeps): OrderBookWidget {
@@ -271,6 +276,8 @@ export class OrderBookWidget {
         this._asksByPrice = new Map();
         this._lastSequence = 0;
         this._currentSymbol = null;
+        this._subscribedSymbol = null;
+        this._disposed = false;
         this._followsActive = saved.followsActive === true;
         this._view = saved.view === 'diagonal' ? 'diagonal' : 'stacked';
         this._invertSides = saved.invertSides === true;
@@ -317,13 +324,15 @@ export class OrderBookWidget {
     /// Release the market-data subscription, leave the fan-out and remove the
     /// panel. Called by the host when the panel is destroyed.
     dispose(): void {
+        if (this._disposed) return;
+        this._disposed = true;
         if (this._frame !== null) {
             window.cancelAnimationFrame(this._frame);
             this._frame = null;
         }
         this._depthObserver?.disconnect();
-        if (this._currentSymbol)
-            void this._host.trading.marketData.removeSymbol(this._currentSymbol).catch(() => { });
+        if (this._subscribedSymbol)
+            void this._host.trading.marketData.removeSymbol(this._subscribedSymbol, MarketDataLevels.Full).catch(() => { });
         this._host.unregister(this);
         try { this.rootEl.remove(); } catch { /* already detached */ }
     }
@@ -334,26 +343,29 @@ export class OrderBookWidget {
     setSymbol(symbol: string): void {
         if (!symbol) return;
         const next = String(symbol).toUpperCase();
-        if (next === this._currentSymbol) return;
 
-        const previous = this._currentSymbol;
-        this._currentSymbol = next;
-        this._resetLedger();
-        if (this._symbolLabel) this._symbolLabel.textContent = next;
-        this._render();
+        if (next !== this._currentSymbol) {
+            this._currentSymbol = next;
+            this._resetLedger();
+            if (this._symbolLabel) this._symbolLabel.textContent = next;
+            this._render();
 
+            // A pinned instance remembers its instrument so a reload restores this
+            // exact ladder; the follows-active one deliberately does not, because it
+            // tracks whatever the host is showing.
+            if (!this._followsActive) this._persistState({ symbol: next });
+        }
+
+        // Taken even when a frame already showed the symbol: the subscription is what dispose gives back.
         // addSymbol / removeSymbol are refcounted by the client, so two ladders
         // on one symbol hold one subscription and neither can drop the other's.
+        if (next === this._subscribedSymbol) return;
         const marketData = this._host.trading.marketData;
-        if (previous) void marketData.removeSymbol(previous).catch(() => { });
+        if (this._subscribedSymbol) void marketData.removeSymbol(this._subscribedSymbol, MarketDataLevels.Full).catch(() => { });
+        this._subscribedSymbol = next;
         // A ladder needs the depth, and the header reads best bid/ask, so it
         // asks for the whole set rather than for quotes alone.
         void marketData.addSymbol(next, MarketDataLevels.Full).catch(() => { });
-
-        // A pinned instance remembers its instrument so a reload restores this
-        // exact ladder; the follows-active one deliberately does not, because it
-        // tracks whatever the host is showing.
-        if (!this._followsActive) this._persistState({ symbol: next });
     }
 
     getSymbol(): string | null { return this._currentSymbol; }
