@@ -123,6 +123,11 @@ export class OrderBookWidget {
     // Last painted quantity per level, keyed by side and price — what decides
     // whether a level flashes and in which direction.
     _prevQuantities: Map<string, number>;
+    /// The paint waiting for the next frame, if one is.
+    _frame: number | null;
+    /// The depth canvas's size in CSS pixels, as its resize observer last reported it.
+    _depthSize: { width: number; height: number } | null;
+    _depthObserver: ResizeObserver | null;
     _depth: number;
     _view: OrderBookView;
     _invertSides: boolean;
@@ -229,6 +234,16 @@ export class OrderBookWidget {
         this.spreadEl = this.rootEl.querySelector('.spread-label');
         this.contentEl = this.rootEl.querySelector('.orderbook-content');
         this.depthChartEl = this.rootEl.querySelector('.ob-depth-chart');
+        // The canvas's size is taken when it changes: read at paint, right after the rows were rebuilt, it made the
+        // page lay itself out first on every update of the book.
+        if (this.depthChartEl && typeof ResizeObserver === 'function') {
+            this._depthObserver = new ResizeObserver(entries => {
+                const box = entries[entries.length - 1].contentRect;
+                this._depthSize = { width: box.width, height: box.height };
+                this._render();
+            });
+            this._depthObserver.observe(this.depthChartEl);
+        }
         this._midSpreadEl = this.rootEl.querySelector('.ob-mid-spread');
         this._sentimentEl = this.rootEl.querySelector('.ob-sentiment');
         this._sentBidPctEl = this.rootEl.querySelector('.ob-sent-bid-pct');
@@ -249,6 +264,9 @@ export class OrderBookWidget {
         };
 
         this._prevQuantities = new Map();
+        this._frame = null;
+        this._depthSize = null;
+        this._depthObserver = null;
         this._bidsByPrice = new Map();
         this._asksByPrice = new Map();
         this._lastSequence = 0;
@@ -299,6 +317,11 @@ export class OrderBookWidget {
     /// Release the market-data subscription, leave the fan-out and remove the
     /// panel. Called by the host when the panel is destroyed.
     dispose(): void {
+        if (this._frame !== null) {
+            window.cancelAnimationFrame(this._frame);
+            this._frame = null;
+        }
+        this._depthObserver?.disconnect();
         if (this._currentSymbol)
             void this._host.trading.marketData.removeSymbol(this._currentSymbol).catch(() => { });
         this._host.unregister(this);
@@ -658,8 +681,19 @@ export class OrderBookWidget {
         this._host.log(`OrderBookWidget: ${message}`);
     }
 
+    // Paints in the page's next frame, so the updates one frame brings paint once, and a hidden tab, which gets no
+    // frames, paints nothing until it is shown. Where there is no frame clock (a test process) it paints at once.
     _render(): void {
-        this._paint(this.getBids(), this.getAsks());
+        const view = typeof window === 'undefined' ? undefined : window;
+        if (!view || typeof view.requestAnimationFrame !== 'function') {
+            this._paint(this.getBids(), this.getAsks());
+            return;
+        }
+        if (this._frame !== null) return;
+        this._frame = view.requestAnimationFrame(() => {
+            this._frame = null;
+            this._paint(this.getBids(), this.getAsks());
+        });
     }
 
     // The step of the instrument on the ladder, which its prices are written to.
@@ -847,8 +881,8 @@ export class OrderBookWidget {
         if (!canvas || !this._showDepthChart) return;
 
         const ratio = Number(this._deps.pixelRatio()) || 1;
-        const cssWidth = canvas.clientWidth || 0;
-        const cssHeight = canvas.clientHeight || 0;
+        const cssWidth = this._depthSize?.width ?? (canvas.clientWidth || 0);
+        const cssHeight = this._depthSize?.height ?? (canvas.clientHeight || 0);
         if (cssWidth < 4 || cssHeight < 4) return;
 
         const width = Math.floor(cssWidth * ratio);

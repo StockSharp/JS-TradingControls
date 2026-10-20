@@ -704,6 +704,12 @@ export declare class OrderBookWidget {
     _addBtn: HTMLElement | null;
     _closeBtn: HTMLElement | null;
     _prevQuantities: Map<string, number>;
+    _frame: number | null;
+    _depthSize: {
+        width: number;
+        height: number;
+    } | null;
+    _depthObserver: ResizeObserver | null;
     _depth: number;
     _view: OrderBookView;
     _invertSides: boolean;

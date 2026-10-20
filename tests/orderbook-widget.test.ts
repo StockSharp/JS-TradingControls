@@ -462,3 +462,60 @@ describe('OrderBookWidget prices', () => {
         assert.equal(root.querySelector('.ob-mid-spread')!.textContent, '0.36');
     });
 });
+
+describe('OrderBookWidget frames', () => {
+    /// A page's frames, run when the test says: once per screen refresh in a browser, none in a hidden tab.
+    function withFrames(body: (runFrame: () => void, pending: () => number) => void): void {
+        const g = globalThis as Record<string, unknown>;
+        const saved = g.window;
+        let queued: Array<() => void> = [];
+        g.window = {
+            requestAnimationFrame: (paint: () => void) => { queued.push(paint); return queued.length; },
+            cancelAnimationFrame: () => { queued = []; },
+        };
+        try {
+            body(() => { const due = queued; queued = []; due.forEach(paint => paint()); }, () => queued.length);
+        } finally {
+            g.window = saved;
+        }
+    }
+
+    it('paints the updates one screen frame brings once, and nothing until a frame comes', () => {
+        withFrames((runFrame, pending) => {
+            const { widget, root } = orderBook();
+            runFrame();
+
+            widget.applyFrame(SNAPSHOT);
+            widget.applyFrame({ symbol: SYMBOL, sequence: 5, bids: [{ price: 99, quantity: 5 }], asks: [] });
+
+            assert.deepStrictEqual(levels(root, 'bids'), [], 'a hidden tab gets no frame and paints nothing');
+            assert.equal(pending(), 1, 'two updates ask for one paint');
+
+            runFrame();
+            assert.deepStrictEqual(levels(root, 'bids').map(row => row[1]), ['5', '1']);
+        });
+    });
+
+    it('reads the depth chart\'s size when it changes, not on every paint', () => {
+        const g = globalThis as Record<string, unknown>;
+        const saved = g.ResizeObserver;
+        let report: ((entries: Array<{ contentRect: { width: number; height: number } }>) => void) | null = null;
+        g.ResizeObserver = class { constructor(callback: typeof report) { report = callback; } observe(): void { } disconnect(): void { } };
+        try {
+            const { widget, root } = orderBook();
+            const canvas = root.querySelector('.ob-depth-chart')!;
+            let reads = 0;
+            Object.defineProperty(canvas, 'clientWidth', { get: () => { reads++; return 300; } });
+            Object.defineProperty(canvas, 'clientHeight', { get: () => { reads++; return 80; } });
+            report!([{ contentRect: { width: 300, height: 80 } }]);
+
+            widget.applyFrame(SNAPSHOT);
+            widget.applyFrame({ symbol: SYMBOL, sequence: 5, bids: [{ price: 99, quantity: 5 }], asks: [] });
+
+            assert.equal(reads, 0, 'every paint laid the page out to read the canvas');
+            assert.equal((canvas as unknown as { width: number }).width, 600, 'the chart is drawn at the size observed');
+        } finally {
+            g.ResizeObserver = saved;
+        }
+    });
+});
