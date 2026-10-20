@@ -614,6 +614,7 @@ export declare class OrderEntryWidget {
     setLimitPrice(price: number): void;
     seedLimitPrice(price: number): void;
     setBbo(bid: number, ask: number): void;
+    resetQuotes(): void;
     applyBbo(side: OrderEntrySide): void;
     setPrice(side: OrderEntrySide, price: number): void;
     setQuantity(quantity: number): void;

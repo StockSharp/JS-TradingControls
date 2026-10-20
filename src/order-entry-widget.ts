@@ -378,6 +378,27 @@ export class OrderEntryWidget {
             false);
     }
 
+    /// Forgets the quotes of the instrument the form was pricing - best bid and
+    /// ask, the last price - and empties every price field, typed or not: the
+    /// limit, the stop, the take-profit and the stop-loss. A host moving to
+    /// another instrument calls this, so a side its book has no quote for stays
+    /// unpriced, and no price typed for the previous instrument goes out on an
+    /// order for the new one.
+    resetQuotes(): void {
+        this._bestBid = 0;
+        this._bestAsk = 0;
+        this._lastPrice = 0;
+        for (const side of OrderEntryWidget.SIDES) {
+            for (const selector of [PRICE_INPUT, STOP_INPUT, TP_INPUT, SL_INPUT]) {
+                const input = this._input(side, selector);
+                if (!input) continue;
+                input.value = '';
+                input.dataset.userEdited = '0';
+            }
+            this._recalculate(side);
+        }
+    }
+
     /// Fill one column's price with the best quote for that direction: Buy takes
     /// the ask, Sell takes the bid.
     applyBbo(side: OrderEntrySide): void {
@@ -652,6 +673,8 @@ export class OrderEntryWidget {
     }
 
     _writePrice(side: OrderEntrySide, price: number, reset: boolean): void {
+        // Zero is the form's "no quote for this side yet": the field stays as it is rather than offering zero.
+        if (price === 0) return;
         const input = this._input(side, PRICE_INPUT);
         if (!input) return;
         const text = this._formatPriceForInput(price);

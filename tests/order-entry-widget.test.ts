@@ -441,3 +441,79 @@ describe('OrderEntryWidget size arithmetic', () => {
         assert.equal(OrderEntryWidget._isMultipleOf(1, -1), true);
     });
 });
+
+describe('OrderEntryWidget on another instrument', () => {
+    it('forgets the previous instrument\'s quotes: a book with asks only leaves Buy unpriced until a bid or a trade', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        widget.setBbo(60000, 60001);
+
+        widget.resetQuotes();
+        assert.equal(field(root, 'buy', 'price').value, '', 'the form still offers the previous instrument\'s price');
+        assert.equal(field(root, 'sell', 'price').value, '');
+
+        widget.setBbo(0, 3001);
+        assert.equal(field(root, 'buy', 'price').value, '', 'the previous instrument\'s bid priced Buy');
+        assert.equal(field(root, 'sell', 'price').value, '3001.00');
+
+        widget.setLimitPrice(3000.5);
+        assert.equal(field(root, 'buy', 'price').value, '3000.50');
+    });
+
+    it('forgets the previous instrument\'s last trade: a book with asks only leaves Buy unpriced', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        widget.setLimitPrice(60000);
+
+        widget.resetQuotes();
+        widget.setBbo(0, 3001);
+
+        assert.equal(field(root, 'buy', 'price').value, '', 'Buy offers the previous instrument\'s last trade');
+    });
+
+    it('forgets the previous instrument\'s best ask: a book with bids only leaves Sell unpriced and the BBO button idle', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        widget.setBbo(60000, 60001);
+
+        widget.resetQuotes();
+        widget.setBbo(2999, 0);
+
+        assert.equal(field(root, 'sell', 'price').value, '', 'Sell offers the previous instrument\'s ask');
+        click(column(root, 'buy').querySelector('.btn-bbo')!);
+        assert.equal(field(root, 'buy', 'price').value, '2999.00', 'the BBO button took the previous instrument\'s ask');
+    });
+
+    it('drops a stop, a take-profit and a stop-loss typed for the previous instrument', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        type(root, 'sell', 'stop', '60000');
+        type(root, 'buy', 'tp', '61000');
+        type(root, 'buy', 'sl', '59000');
+
+        widget.resetQuotes();
+
+        assert.deepStrictEqual([field(root, 'sell', 'stop').value, field(root, 'buy', 'tp').value, field(root, 'buy', 'sl').value],
+            ['', '', ''], 'a price typed for the previous instrument stays on the order for the new one');
+    });
+
+    it('a negative price, as a spread can trade at, still prices the form', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+
+        widget.setLimitPrice(-5);
+
+        assert.equal(field(root, 'buy', 'price').value, '-5.00');
+    });
+
+    it('drops a price typed for the previous instrument and follows the market again', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        type(root, 'buy', 'price', '60000');
+
+        widget.resetQuotes();
+        widget.setBbo(2999, 3001);
+
+        assert.equal(field(root, 'buy', 'price').value, '2999.00');
+    });
+});
