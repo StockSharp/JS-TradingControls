@@ -265,7 +265,30 @@ describe('OrderBookWidget clicks', () => {
         assert.equal(label.textContent, 'ETH@IMEX');
         // Picking detaches it: it is a pinned ladder on the chosen symbol now.
         assert.equal(widget.isFollowsActive(), false);
-        assert.deepStrictEqual(host.calls.persisted, [{ followsActive: false, symbol: 'ETH@IMEX' }]);
+        assert.equal(host.calls.persisted.length, 1, 'the detach was kept in more than one go');
+        const [patch] = host.calls.persisted;
+        assert.deepStrictEqual({ followsActive: patch.followsActive, symbol: patch.symbol }, { followsActive: false, symbol: 'ETH@IMEX' });
+    });
+
+    it("carries what it shows into the pin when detached, as a ladder made with + does", () => {
+        const { widget, root, host } = orderBook({ followsActive: true });
+        widget.setSymbol(SYMBOL);
+        widget.setDepth(5);
+        widget.setView('diagonal');
+        widget.setInvertSides(true);
+        widget.setShowDepthChart(false);
+        host.trading.pickInstrument = (onPicked) => onPicked('ETH@IMEX');
+
+        const label = root.querySelector('.ob-symbol-label')!;
+        label.dispatchEvent({ type: 'click', target: label });
+
+        const saved = Object.assign({ followsActive: true }, ...host.calls.persisted);
+        assert.deepStrictEqual(
+            { depth: saved.depth, view: saved.view, invertSides: saved.invertSides, showDepthChart: saved.showDepthChart },
+            { depth: 5, view: 'diagonal', invertSides: true, showDepthChart: false });
+        const { widget: reloaded, root: reloadedRoot } = orderBook(saved);
+        assert.equal(reloaded.getDepth(), 5, 'the pinned ladder came back at the default depth');
+        assert.ok(reloadedRoot.className.includes('ob-view-diagonal'), 'the pinned ladder came back stacked');
     });
 
     it('keeps the instrument it was detached onto across a reload, the one it already showed included', () => {
@@ -277,7 +300,7 @@ describe('OrderBookWidget clicks', () => {
         label.dispatchEvent({ type: 'click', target: label });
 
         const saved = Object.assign({}, ...host.calls.persisted);
-        assert.deepStrictEqual(saved, { followsActive: false, symbol: SYMBOL });
+        assert.deepStrictEqual({ followsActive: saved.followsActive, symbol: saved.symbol }, { followsActive: false, symbol: SYMBOL });
         const { widget: reloaded } = orderBook(saved);
         assert.equal(reloaded.getSymbol(), SYMBOL, 'the reloaded ladder lost the instrument it was pinned to');
         assert.equal(reloaded.isFollowsActive(), false);

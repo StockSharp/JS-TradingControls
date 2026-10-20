@@ -532,10 +532,18 @@ export class OrderBookWidget {
                     return;
                 }
                 // Detached, it is pinned to what it lands on - the instrument it already showed too, which
-                // setSymbol keeps nothing for - so the pin and the instrument are kept together.
+                // setSymbol keeps nothing for - and keeps what it shows, which a following ladder holds in the
+                // host's preferences rather than in its own state: all of it goes into the pin at once.
                 this.setSymbol(symbol);
                 this._followsActive = false;
-                this._persistState({ followsActive: false, symbol: this._currentSymbol });
+                this._persistState({
+                    followsActive: false,
+                    symbol: this._currentSymbol,
+                    depth: this._depth,
+                    view: this._view,
+                    invertSides: this._invertSides,
+                    showDepthChart: this._showDepthChart,
+                });
             });
         });
     }
