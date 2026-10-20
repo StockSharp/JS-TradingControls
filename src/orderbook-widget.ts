@@ -526,11 +526,16 @@ export class OrderBookWidget {
             e.preventDefault();
             e.stopPropagation();
             this._host.trading.pickInstrument((symbol) => {
-                if (this._followsActive) {
-                    this._followsActive = false;
-                    this._persistState({ followsActive: false });
+                if (!symbol) return;
+                if (!this._followsActive) {
+                    this.setSymbol(symbol);
+                    return;
                 }
+                // Detached, it is pinned to what it lands on - the instrument it already showed too, which
+                // setSymbol keeps nothing for - so the pin and the instrument are kept together.
                 this.setSymbol(symbol);
+                this._followsActive = false;
+                this._persistState({ followsActive: false, symbol: this._currentSymbol });
             });
         });
     }

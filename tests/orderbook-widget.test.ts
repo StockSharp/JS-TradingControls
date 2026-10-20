@@ -265,7 +265,22 @@ describe('OrderBookWidget clicks', () => {
         assert.equal(label.textContent, 'ETH@IMEX');
         // Picking detaches it: it is a pinned ladder on the chosen symbol now.
         assert.equal(widget.isFollowsActive(), false);
-        assert.deepStrictEqual(host.calls.persisted, [{ followsActive: false }, { symbol: 'ETH@IMEX' }]);
+        assert.deepStrictEqual(host.calls.persisted, [{ followsActive: false, symbol: 'ETH@IMEX' }]);
+    });
+
+    it('keeps the instrument it was detached onto across a reload, the one it already showed included', () => {
+        const { widget, root, host } = orderBook({ followsActive: true });
+        widget.setSymbol(SYMBOL);
+        host.trading.pickInstrument = (onPicked) => onPicked(SYMBOL);
+
+        const label = root.querySelector('.ob-symbol-label')!;
+        label.dispatchEvent({ type: 'click', target: label });
+
+        const saved = Object.assign({}, ...host.calls.persisted);
+        assert.deepStrictEqual(saved, { followsActive: false, symbol: SYMBOL });
+        const { widget: reloaded } = orderBook(saved);
+        assert.equal(reloaded.getSymbol(), SYMBOL, 'the reloaded ladder lost the instrument it was pinned to');
+        assert.equal(reloaded.isFollowsActive(), false);
     });
 });
 
