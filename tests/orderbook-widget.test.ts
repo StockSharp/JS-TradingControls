@@ -25,8 +25,8 @@ function orderBook(state: Record<string, unknown> = {}, room = 10) {
     const host = fakeHost();
     const widget = OrderBookWidget.create(asDom(parent), state, {
         host,
-        onPriceSelected: (price, side) => calls.push(['select', price, side]),
-        onPriceExecuted: (price, side) => calls.push(['execute', price, side]),
+        onPriceSelected: (price, side, symbol) => calls.push(['select', price, side, symbol]),
+        onPriceExecuted: (price, side, symbol) => calls.push(['execute', price, side, symbol]),
         maxDepth: () => room,
         pixelRatio: () => 2,
     });
@@ -242,7 +242,7 @@ describe('OrderBookWidget renders a book', () => {
 });
 
 describe('OrderBookWidget clicks', () => {
-    it('reports the price and the side the user would trade, through the deps', () => {
+    it('reports the price, the side the user would trade and the instrument the ladder shows, through the deps', () => {
         const { widget, root, calls } = orderBook();
         widget.applyFrame(SNAPSHOT);
 
@@ -251,7 +251,7 @@ describe('OrderBookWidget clicks', () => {
 
         // Clicking a bid is where a seller meets the market, and the other way
         // round — so a bid row reports side 1 and an ask row side 0.
-        assert.deepStrictEqual(calls, [['select', 99, 1], ['execute', 100, 0]]);
+        assert.deepStrictEqual(calls, [['select', 99, 1, SYMBOL], ['execute', 100, 0, SYMBOL]]);
     });
 
     it('asks the host for a picker and retargets only itself', () => {

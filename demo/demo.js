@@ -1129,8 +1129,8 @@
             host: makeHost(ControlTypes.OrderBook),
             // A plain click prefills a price, and that is all: the ladder reports
             // the level and the side, the host decides what to do with it.
-            onPriceSelected: (price, side) => {
-                logLine('act', `onPriceSelected(${price}, ${side}) — prefilling the order pad`, ControlTypes.OrderBook);
+            onPriceSelected: (price, side, symbol) => {
+                logLine('act', `onPriceSelected(${price}, ${side}, "${symbol}") — prefilling the order pad`, ControlTypes.OrderBook);
                 const pad = live.get(ControlTypes.OrderEntry);
                 if (pad) {
                     pad.preselect(side === Sides.Buy ? OrderEntrySides.Buy : OrderEntrySides.Sell);
@@ -1140,14 +1140,14 @@
             // Ctrl-click sends at that price. It rests in the demo's own order
             // list, so the ladder's badge and the active-orders panel both show
             // it on the next frame.
-            onPriceExecuted: (price, side) => {
+            onPriceExecuted: (price, side, symbol) => {
                 const buy = side === Sides.Buy;
                 const quantity = size();
-                logLine('act', `onPriceExecuted(${price}, ${side}) — resting ${quantity} ${buy ? 'bid' : 'offer'}`, ControlTypes.OrderBook);
+                logLine('act', `onPriceExecuted(${price}, ${side}, "${symbol}") — resting ${quantity} ${buy ? 'bid' : 'offer'}`, ControlTypes.OrderBook);
                 state.orders.unshift({
                     id: state.nextOrderId++,
                     localId: Math.max(0, ...state.orders.map(o => o.localId || 0)) + 1,
-                    instrument: widget.getSymbol(),
+                    instrument: symbol,
                     side: buy ? Sides.Buy : Sides.Sell,
                     type: OrderTypes.Limit,
                     quantity,

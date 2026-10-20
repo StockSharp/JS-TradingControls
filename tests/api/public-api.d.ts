@@ -669,8 +669,8 @@ import type { BookLevel, OrderBookFrame, QuoteLevel } from './trading-data.js';
 import { type DepthGeometry } from './orderbook-depth.js';
 export interface OrderBookDeps {
     host: TradingHost;
-    onPriceSelected(price: number, side: number): void;
-    onPriceExecuted(price: number, side: number): void;
+    onPriceSelected(price: number, side: number, symbol: string): void;
+    onPriceExecuted(price: number, side: number, symbol: string): void;
     maxDepth(): number;
     pixelRatio(): number;
 }

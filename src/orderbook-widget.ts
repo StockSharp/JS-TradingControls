@@ -39,9 +39,12 @@ import { depthPolyline, depthSide, type DepthGeometry } from './orderbook-depth.
 export interface OrderBookDeps {
     host: TradingHost;
     /// Plain click on a level — prefill an order at this price, do not send it.
-    onPriceSelected(price: number, side: number): void;
-    /// Ctrl/Cmd click on a level — send at this price now.
-    onPriceExecuted(price: number, side: number): void;
+    /// `symbol` is the instrument the ladder shows, which a pinned ladder keeps
+    /// apart from the host's: the host decides whether the price is one its
+    /// order form may take.
+    onPriceSelected(price: number, side: number, symbol: string): void;
+    /// Ctrl/Cmd click on a level — send at this price now. `symbol` as above.
+    onPriceExecuted(price: number, side: number, symbol: string): void;
     /// The most levels per side this host has room for, read per depth change.
     /// A phone-sized page answers 5: ten levels a side overflow the panel and
     /// leave the user with two inner scrollbars to dance around. A host with
@@ -543,15 +546,16 @@ export class OrderBookWidget {
         this.contentEl?.addEventListener('click', (e) => {
             const target = e.target as Element | null;
             const row = target?.closest('.ob-row') as HTMLElement | null;
-            if (!row) return;
+            const symbol = this._currentSymbol;
+            if (!row || !symbol) return;
             const price = Number(row.dataset.price);
             if (!Number.isFinite(price)) return;
 
             // A bid row is where the user sells and an ask row is where they
             // buy, so the row carries the side of the order, not of the level.
             const side = row.dataset.side === 'buy' ? 0 : 1;
-            if (e.ctrlKey || e.metaKey) this._deps.onPriceExecuted(price, side);
-            else this._deps.onPriceSelected(price, side);
+            if (e.ctrlKey || e.metaKey) this._deps.onPriceExecuted(price, side, symbol);
+            else this._deps.onPriceSelected(price, side, symbol);
         });
     }
 
