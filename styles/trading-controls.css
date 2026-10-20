@@ -26,6 +26,8 @@
 
 /* A price cell that changed. The background is what animates, not the text,
    because the text is the number the user is trying to read. */
+/* A flash fades in three steps rather than smoothly: a tape or a book that updates faster than a flash lasts keeps
+   one running all the time, and a smooth fade repaints its rows on every frame of it. */
 @keyframes flashGreen {
     0% { background: var(--t-green-flash); }
     100% { background: transparent; }
@@ -602,8 +604,8 @@
 .wl-sym { color: var(--t-text-bright); font-weight: 500; }
 
 .wl-last { text-align: right; color: var(--t-text); transition: background 0.3s ease; }
-.wl-last.flash-up { animation: flashGreen 0.5s ease; }
-.wl-last.flash-down { animation: flashRed 0.5s ease; }
+.wl-last.flash-up { animation: flashGreen 0.5s steps(3, end); }
+.wl-last.flash-down { animation: flashRed 0.5s steps(3, end); }
 
 .wl-chg { text-align: right; font-weight: 600; }
 .wl-chg.up { color: var(--t-green); }
@@ -807,8 +809,8 @@
     background: linear-gradient(to right, color-mix(in srgb, var(--t-green) 55%, transparent), transparent);
 }
 
-.ob-row.flash-green { animation: flashGreen 0.5s ease; }
-.ob-row.flash-red { animation: flashRed 0.5s ease; }
+.ob-row.flash-green { animation: flashGreen 0.5s steps(3, end); }
+.ob-row.flash-red { animation: flashRed 0.5s steps(3, end); }
 
 /* A level this session has size resting on: a stripe down the outside of the
    row, and the resting quantity inside the size cell. */
@@ -1010,8 +1012,8 @@
 
 /* A print that just landed (the grid's flashNewClass names it), and one well
    above the recent average size. */
-.tradefeed-table tbody tr.flash-new { animation: flashGreen 0.6s ease; }
-.tradefeed-table tbody tr.side-sell.flash-new { animation: flashRed 0.6s ease; }
+.tradefeed-table tbody tr.flash-new { animation: flashGreen 0.6s steps(3, end); }
+.tradefeed-table tbody tr.side-sell.flash-new { animation: flashRed 0.6s steps(3, end); }
 .tradefeed-table tbody tr.large-trade td { font-size: 12px; font-weight: 600; }
 .tradefeed-table tbody tr.large-trade td[data-col="quantity"] { color: var(--t-text-bright); }
 
