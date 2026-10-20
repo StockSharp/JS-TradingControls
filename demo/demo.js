@@ -1132,9 +1132,11 @@
             onPriceSelected: (price, side, symbol) => {
                 logLine('act', `onPriceSelected(${price}, ${side}, "${symbol}") — prefilling the order pad`, ControlTypes.OrderBook);
                 const pad = live.get(ControlTypes.OrderEntry);
-                if (pad) {
-                    pad.preselect(side === Sides.Buy ? OrderEntrySides.Buy : OrderEntrySides.Sell);
-                    pad.setLimitPrice(price);
+                // The pad prices one instrument; a ladder pinned to another one does not price it.
+                if (pad && symbol === ORDER_ENTRY_SPEC.symbol) {
+                    const column = side === Sides.Buy ? OrderEntrySides.Buy : OrderEntrySides.Sell;
+                    pad.preselect(column);
+                    pad.choosePrice(column, price);
                 }
             },
             // Ctrl-click sends at that price. It rests in the demo's own order

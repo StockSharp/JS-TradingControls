@@ -219,11 +219,35 @@ describe('OrderEntryWidget prices', () => {
         assert.equal(field(root, 'buy', 'price').value, '99.00');
     });
 
-    it('setPrice is the seam a click on a book level goes through', () => {
+    it("setPrice writes the price on the instrument's tick", () => {
         const { widget, root } = pad();
         widget.setInstrument(INSTRUMENT);
         widget.setPrice(OrderEntrySides.Sell, 100.017);
         assert.equal(field(root, 'sell', 'price').value, '100.02');
+    });
+
+    it('a price the user picks - a book level, a chart price - stays while the market moves', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        widget.setBbo(99.5, 100.25);
+
+        widget.choosePrice(OrderEntrySides.Buy, 98.017);
+        assert.equal(field(root, 'buy', 'price').value, '98.02');
+
+        widget.setBbo(99, 103);
+        widget.setLimitPrice(101);
+        assert.equal(field(root, 'buy', 'price').value, '98.02', 'the market moved the price the user picked');
+        assert.equal(field(root, 'sell', 'price').value, '103.00', 'the other column stopped following the market');
+    });
+
+    it('a picked price gives way to a move to another instrument', () => {
+        const { widget, root } = pad();
+        widget.setInstrument(INSTRUMENT);
+        widget.choosePrice(OrderEntrySides.Buy, 98);
+
+        widget.resetQuotes();
+        widget.setBbo(52, 53);
+        assert.equal(field(root, 'buy', 'price').value, '52.00');
     });
 });
 

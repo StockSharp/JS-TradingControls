@@ -617,6 +617,7 @@ export declare class OrderEntryWidget {
     resetQuotes(): void;
     applyBbo(side: OrderEntrySide): void;
     setPrice(side: OrderEntrySide, price: number): void;
+    choosePrice(side: OrderEntrySide, price: number): void;
     setQuantity(quantity: number): void;
     applyPercent(side: OrderEntrySide, pct: number): void;
     toggleTpSl(side: OrderEntrySide, on: boolean): void;
@@ -635,6 +636,7 @@ export declare class OrderEntryWidget {
     _show(element: HTMLElement | null, visible: boolean): void;
     _writePrices(buyPrice: number, sellPrice: number, reset: boolean): void;
     _writePrice(side: OrderEntrySide, price: number, reset: boolean): void;
+    _writeChosen(side: OrderEntrySide, price: number, edited: '0' | '1'): void;
     _formatPriceForInput(price: number): string;
     _recalculate(side: OrderEntrySide): void;
     _updateEstimate(side: OrderEntrySide): void;

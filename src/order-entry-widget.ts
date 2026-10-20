@@ -408,16 +408,17 @@ export class OrderEntryWidget {
     }
 
     /// Force one column's price and let ticks resume updating it afterwards —
-    /// what a click on a book level or a chart price means. Quantized to the
-    /// instrument's tick, so a raw chart coordinate does not fail validation.
+    /// what the BBO button and a click that sends at once mean. Quantized to
+    /// the instrument's tick, so a raw chart coordinate does not fail validation.
     setPrice(side: OrderEntrySide, price: number): void {
-        const input = this._input(side, PRICE_INPUT);
-        if (!input) return;
-        const text = this._formatPriceForInput(price);
-        if (!text) return;
-        input.dataset.userEdited = '0';
-        input.value = text;
-        this._recalculate(side);
+        this._writeChosen(side, price, '0');
+    }
+
+    /// A price the user picked for one column - a book level, a chart price:
+    /// written on the instrument's tick and kept while the market moves, as a
+    /// typed one is, until the user or a move to another instrument changes it.
+    choosePrice(side: OrderEntrySide, price: number): void {
+        this._writeChosen(side, price, '1');
     }
 
     /// The same quantity in both columns — a quick-size gesture applies to
@@ -687,6 +688,18 @@ export class OrderEntryWidget {
         if (this._focused === input) return;
         if (input.dataset.userEdited === '1') return;
         input.value = text;
+    }
+
+    // One column's price set by a gesture rather than by the market. `edited`
+    // is the mark ticks read: '1' keeps the price, '0' lets them move it.
+    _writeChosen(side: OrderEntrySide, price: number, edited: '0' | '1'): void {
+        const input = this._input(side, PRICE_INPUT);
+        if (!input) return;
+        const text = this._formatPriceForInput(price);
+        if (!text) return;
+        input.dataset.userEdited = edited;
+        input.value = text;
+        this._recalculate(side);
     }
 
     // Round a price to the instrument's tick and cut the float tail: a mid price
