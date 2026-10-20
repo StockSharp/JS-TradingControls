@@ -108,7 +108,7 @@ export const HOST_NESTED_MEMBERS = [
     'trading.api', 'trading.api.getExecutions', 'trading.api.searchInstruments',
     'trading.marketData', 'trading.marketData.addSymbol', 'trading.marketData.removeSymbol',
     'trading.marketData.resubscribe', 'trading.marketData.getOrders',
-    'trading.portfolioId', 'trading.pickInstrument',
+    'trading.portfolioId', 'trading.pickInstrument', 'trading.priceStep',
     'ticker.publish',
 ] as const;
 
@@ -165,6 +165,7 @@ export function fakeHost(): TestHost {
             },
             portfolioId: () => null,
             pickInstrument: () => { },
+            priceStep: () => null,
         },
         ticker: { publish: (symbols: string[], _stats: Map<string, QuoteStats>) => calls.published.push(symbols) },
         allow: (action) => { calls.allowed.push(action); return true; },

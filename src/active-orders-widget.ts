@@ -12,7 +12,7 @@
 // grid to fill. Cells that hold a control return a real Node with its own
 // listener, so nothing here reaches a global through an inline onclick
 // attribute; the callbacks arrive as deps instead.
-import { cleanRejectReason, formatPrice, formatQty } from './formatters.js';
+import { cleanRejectReason, formatPriceStep, formatQty } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
 import { makeGridMenu } from './grid-menu.js';
@@ -335,7 +335,7 @@ export class ActiveOrdersWidget {
                 header: label('Price'),
                 exportable: true,
                 value: (o) => o.limitPrice,
-                render: (o) => o.limitPrice ? formatPrice(o.limitPrice) : label('MKT'),
+                render: (o) => o.limitPrice ? formatPriceStep(o.limitPrice, this._host.trading.priceStep(o.instrument ?? '')) : label('MKT'),
                 cellClass: (o) => this._readOnly ? '' : ActiveOrdersWidget._editableClass(o, 'limitPrice'),
                 bindCell: (td, o) => this._bindInlineEdit(td, o, 'limitPrice'),
                 exportValue: (o) => o.limitPrice ?? label('MKT'),
@@ -345,7 +345,7 @@ export class ActiveOrdersWidget {
                 header: label('Stop'),
                 exportable: true,
                 value: (o) => o.stopPrice,
-                render: (o) => o.stopPrice ? formatPrice(o.stopPrice) : '--',
+                render: (o) => o.stopPrice ? formatPriceStep(o.stopPrice, this._host.trading.priceStep(o.instrument ?? '')) : '--',
                 cellClass: (o) => this._readOnly ? '' : ActiveOrdersWidget._editableClass(o, 'stopPrice'),
                 bindCell: (td, o) => this._bindInlineEdit(td, o, 'stopPrice'),
                 exportValue: (o) => o.stopPrice ?? '',

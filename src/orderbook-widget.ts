@@ -25,7 +25,7 @@
 // rather than drifting. Own resting orders come from
 // `marketData.getOrders()` — the badge is an overlay on the levels, not a
 // second subscription.
-import { formatPrice, formatQty } from './formatters.js';
+import { formatPriceStep, formatQty } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
 import { MarketDataLevels, TradingHost, assertHost } from './trading-host.js';
@@ -662,6 +662,11 @@ export class OrderBookWidget {
         this._paint(this.getBids(), this.getAsks());
     }
 
+    // The step of the instrument on the ladder, which its prices are written to.
+    _priceStep(): number | null {
+        return this._currentSymbol === null ? null : this._host.trading.priceStep(this._currentSymbol);
+    }
+
     _paint(bids: BookLevel[], asks: BookLevel[]): void {
         if (!this.asksEl || !this.bidsEl) return;
 
@@ -734,9 +739,10 @@ export class OrderBookWidget {
             const bestAsk = asks[0].price;
             const bestBid = bids[0].price;
             const spread = bestAsk - bestBid;
-            if (this.midEl) this.midEl.textContent = formatPrice((bestAsk + bestBid) / 2);
-            if (this._midSpreadEl) this._midSpreadEl.textContent = formatPrice(spread);
-            if (this.spreadEl) this.spreadEl.textContent = this._host.t('Spread: {0}', formatPrice(spread));
+            const step = this._priceStep();
+            if (this.midEl) this.midEl.textContent = formatPriceStep((bestAsk + bestBid) / 2, step);
+            if (this._midSpreadEl) this._midSpreadEl.textContent = formatPriceStep(spread, step);
+            if (this.spreadEl) this.spreadEl.textContent = this._host.t('Spread: {0}', formatPriceStep(spread, step));
         }
 
         this._paintSentiment(visibleBids, visibleAsks);
@@ -761,7 +767,7 @@ export class OrderBookWidget {
             'data-side': options.orderSide,
             'data-price': String(level.price),
         }, [
-            makeElement('span', 'price', {}, [formatPrice(level.price)]),
+            makeElement('span', 'price', {}, [formatPriceStep(level.price, this._priceStep())]),
             quantity,
             makeElement('span', 'total', {}, [formatQty(options.cumulative)]),
             makeElement('span', 'bar', {}, []),

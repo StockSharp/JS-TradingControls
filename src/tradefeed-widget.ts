@@ -20,7 +20,7 @@
 // geometry comes out of `tradefeed-bubbles.ts` as numbers and its colours out
 // of the host's `canvasPalette()`, so the package still paints nothing from a
 // palette of its own.
-import { formatPrice, formatQty } from './formatters.js';
+import { formatPriceStep, formatQty } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
 import { makeGridMenu } from './grid-menu.js';
@@ -393,7 +393,7 @@ export class TradeFeedWidget {
                 header: label('Price'),
                 exportable: true,
                 value: (t) => t.price,
-                render: (t) => formatPrice(t.price),
+                render: (t) => formatPriceStep(t.price, this._host.trading.priceStep(t.symbol ?? '')),
             },
             {
                 key: 'quantity',
@@ -717,7 +717,7 @@ export class TradeFeedWidget {
         const lines: HTMLElement[] = [];
         if (this._extraSymbols.size > 0) lines.push(this._tooltipLine(this._host.t('Symbol'), bubble.symbol, ''));
         lines.push(this._tooltipLine(this._host.t('Time'), this._host.presentation.timeText(bubble.time), ''));
-        lines.push(this._tooltipLine(aggregated ? this._host.t('VWAP') : this._host.t('Price'), formatPrice(bubble.price), ''));
+        lines.push(this._tooltipLine(aggregated ? this._host.t('VWAP') : this._host.t('Price'), formatPriceStep(bubble.price, this._host.trading.priceStep(bubble.symbol)), ''));
         lines.push(this._tooltipLine(aggregated ? this._host.t('Total qty') : this._host.t('Qty'), formatQty(bubble.quantity), ''));
         lines.push(this._tooltipLine(this._host.t('Side'), presentation.sideText(side), presentation.sideClass(side)));
         if (aggregated) lines.push(this._tooltipLine(this._host.t('Trades'), String(bubble.count), ''));

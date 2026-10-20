@@ -667,6 +667,11 @@
                 // screen, and the control learns only what was chosen — nothing
                 // at all if the user dismisses it.
                 pickInstrument: (onPicked) => pickInstrument(kind, onPicked),
+                // The universe's own decimals stand in for a venue's price step.
+                priceStep: (symbol) => {
+                    const instrument = UNIVERSE.find(u => u.symbol === symbol);
+                    return instrument === undefined ? null : 10 ** -instrument.dp;
+                },
             },
             ticker: {
                 publish(symbols, stats) {

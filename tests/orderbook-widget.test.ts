@@ -445,3 +445,20 @@ describe('OrderBookWidget depth chart', () => {
         assert.equal(ctx.calls.length, before);
     });
 });
+
+describe('OrderBookWidget prices', () => {
+    it('writes every level, the mid price and the spread to the instrument\'s step', () => {
+        const { widget, root, host } = orderBook();
+        host.trading.priceStep = symbol => (symbol === SYMBOL ? 0.01 : null);
+        widget.applyFrame({
+            ...SNAPSHOT,
+            bids: [{ price: 82146.12, quantity: 1 }, { price: 82145.5, quantity: 2 }],
+            asks: [{ price: 82146.48, quantity: 1 }, { price: 82147, quantity: 3 }],
+        });
+
+        assert.deepStrictEqual(levels(root, 'asks').map(row => row[0]), ['82147.00', '82146.48']);
+        assert.deepStrictEqual(levels(root, 'bids').map(row => row[0]), ['82146.12', '82145.50']);
+        assert.equal(root.querySelector('.ob-mid-price')!.textContent, '82146.30');
+        assert.equal(root.querySelector('.ob-mid-spread')!.textContent, '0.36');
+    });
+});

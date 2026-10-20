@@ -157,6 +157,7 @@ export declare class EquityWidget {
 // FILE: formatters.d.ts
 type Numeric = number | string | null | undefined;
 export declare function formatPrice(price: Numeric): string;
+export declare function formatPriceStep(price: Numeric, step: number | null): string;
 export declare function formatQty(qty: Numeric): string;
 export declare function formatTime(dateStr: string | number | Date | null | undefined): string;
 export declare function formatPnl(pnl: Numeric): string;
@@ -746,6 +747,7 @@ export declare class OrderBookWidget {
     _requestResubscribe(symbol: string): Promise<void>;
     _anomaly(message: string): void;
     _render(): void;
+    _priceStep(): number | null;
     _paint(bids: BookLevel[], asks: BookLevel[]): void;
     _levelRow(level: BookLevel, options: {
         rowClass: string;
@@ -1376,6 +1378,7 @@ export interface TradingContext {
     readonly marketData: MarketDataClient;
     portfolioId(): number | null;
     pickInstrument(onPicked: (symbol: string) => void): void;
+    priceStep(symbol: string): number | null;
 }
 export interface TickerSink {
     publish(symbols: string[], stats: Map<string, QuoteStats>): void;

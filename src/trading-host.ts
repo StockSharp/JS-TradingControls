@@ -182,6 +182,10 @@ export interface TradingContext {
     /// picker UI; the control only learns what was chosen, and learns nothing
     /// if the user dismisses it.
     pickInstrument(onPicked: (symbol: string) => void): void;
+    /// The step an instrument's price moves by, or null while the host does
+    /// not know it. A control writes the instrument's prices to the step's
+    /// precision, and by their magnitude without one.
+    priceStep(symbol: string): number | null;
 }
 
 /// Where a control's summary of what it is showing goes. A status-bar ticker is
@@ -306,6 +310,7 @@ export function assertHost(host: TradingHost, controlName: string): TradingHost 
     _required(host.trading.marketData.getOrders, 'host.trading.marketData.getOrders', 'function', controlName);
     _required(host.trading.portfolioId, 'host.trading.portfolioId', 'function', controlName);
     _required(host.trading.pickInstrument, 'host.trading.pickInstrument', 'function', controlName);
+    _required(host.trading.priceStep, 'host.trading.priceStep', 'function', controlName);
 
     _required(host.ticker, 'host.ticker', 'object', controlName);
     _required(host.ticker.publish, 'host.ticker.publish', 'function', controlName);

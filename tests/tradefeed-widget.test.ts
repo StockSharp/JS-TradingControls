@@ -456,3 +456,15 @@ describe('TradeFeedWidget', () => {
         panel.widget.dispose();
     });
 });
+
+describe('TradeFeedWidget prices', () => {
+    it('writes each print to its instrument\'s step', () => {
+        const { widget, root, host } = tradeFeedPanel();
+        host.trading.priceStep = symbol => (symbol === 'BTC@IMEX' ? 0.01 : null);
+        widget.setActiveSymbol('BTC@IMEX');
+
+        widget.addTrade({ symbol: 'BTC@IMEX', side: 'Buy', price: 82146.12, quantity: 1, time: '2026-04-30T12:00:04Z' });
+
+        assert.equal(cell(rows(root)[0]!, 'price').textContent, '82146.12');
+    });
+});

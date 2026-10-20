@@ -32,6 +32,25 @@ export function formatPrice(price: Numeric): string {
     return n.toFixed(prec);
 }
 
+/// A price written to the precision of its instrument's step, so two prices a
+/// step apart never read the same: by its magnitude a $82,146.12 level and a
+/// $82,146.48 one both read "82146". Without a step the precision follows the
+/// magnitude, as `formatPrice` has it.
+export function formatPriceStep(price: Numeric, step: number | null): string {
+    if (price == null || isNaN(Number(price))) return '--';
+    if (step === null || !Number.isFinite(step) || step <= 0) return formatPrice(price);
+    return Number(price).toFixed(stepDecimals(step));
+}
+
+/// How many decimals a step carries: two for 0.01, one for 0.5, none for 5.
+function stepDecimals(step: number): number {
+    for (let decimals = 0; decimals < 12; decimals++) {
+        const scaled = step * 10 ** decimals;
+        if (Math.abs(scaled - Math.round(scaled)) < 1e-9 * Math.max(1, scaled)) return decimals;
+    }
+    return 12;
+}
+
 /// Crypto quantities carry up to 8 decimals, so the cap is 8 rather than the
 /// locale default of 3; trailing zeros are trimmed because a size of "1" reads
 /// better than "1.00000000" in a ladder.

@@ -12,7 +12,7 @@
 // fill. The cash balance is a pinned row — a different shape from a position,
 // so it supplies its own cells, sits outside the sort and stays out of the
 // exported sheet.
-import { formatPnl, formatPrice } from './formatters.js';
+import { formatPnl, formatPriceStep } from './formatters.js';
 import { makeElement, makeIconButton, makePanelId, makePanelRoot } from './dom.js';
 import { ControlTypes } from './control-types.js';
 import { makeGridMenu } from './grid-menu.js';
@@ -222,14 +222,14 @@ export class PositionsWidget {
                 header: label('AvgPrice'),
                 exportable: true,
                 value: (p) => p.avgPrice,
-                render: (p) => formatPrice(p.avgPrice),
+                render: (p) => formatPriceStep(p.avgPrice, this._host.trading.priceStep(p.instrument ?? '')),
             },
             {
                 key: 'currentPrice',
                 header: label('Current'),
                 exportable: true,
                 value: (p) => p.currentPrice,
-                render: (p) => formatPrice(p.currentPrice),
+                render: (p) => formatPriceStep(p.currentPrice, this._host.trading.priceStep(p.instrument ?? '')),
             },
             {
                 key: 'pnl',

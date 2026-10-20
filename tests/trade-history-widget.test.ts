@@ -188,3 +188,16 @@ it('words its time through the host, not on its own', async () => {
     assert.ok(cells.includes('worded:2024-03-01T18:20:00.000Z'), `host wording missing from: ${cells.join(' | ')}`);
 });
 });
+
+describe('TradeHistoryWidget prices', () => {
+    it('writes each trade\'s price to the step of its instrument', async () => {
+        const { widget, host } = tradeHistoryPanel(() => 7, [
+            { id: 21, executedAt: '2026-02-01T10:00:00Z', instrumentSymbol: 'BTC/USD', side: 0, quantity: 1, price: 82146.12, order: 601 },
+        ]);
+        host.trading.priceStep = symbol => (symbol === 'BTC/USD' ? 0.01 : null);
+
+        await widget.refresh();
+
+        assert.equal(cell(widget, '21', 'price').textContent, '82146.12');
+    });
+});

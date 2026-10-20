@@ -166,3 +166,16 @@ describe('PositionsWidget', () => {
         assert.equal(cell(widget, '7:1', 'pnl').textContent, '+55.00');
     });
 });
+
+describe('PositionsWidget prices', () => {
+    it('writes the average and the current price to the step of the position\'s instrument', () => {
+        const { widget, host } = positionsPanel();
+        host.trading.priceStep = symbol => (symbol === 'BTC/USD' ? 0.01 : null);
+
+        widget.update(POSITIONS.map(p => ({ ...p })));
+        widget.applyDelta({ portfolioId: 7, instrumentId: 1, quantity: 2, avgPrice: 82146.12, currentPrice: 82150.5, unrealizedPnl: 8.76 });
+
+        assert.equal(cell(widget, '7:1', 'avgPrice').textContent, '82146.12');
+        assert.equal(cell(widget, '7:1', 'currentPrice').textContent, '82150.50');
+    });
+});

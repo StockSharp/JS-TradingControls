@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatQty, formatTime } from '../src/formatters.js';
+import { formatPrice, formatPriceStep, formatQty, formatTime } from '../src/formatters.js';
 
 // The tape formats a time and a quantity for every row of every paint. Asking
 // the locale for a formatter on each call made those two the costliest lines of
@@ -60,5 +60,21 @@ describe('the formatters on a busy page', () => {
         }
 
         assert.equal(asked, 0, 'a locale formatter was built for a call');
+    });
+});
+
+describe('formatPriceStep', () => {
+    it('writes a price to the precision of its instrument\'s step, so prices a step apart never read the same', () => {
+        assert.equal(formatPriceStep(82146.12, 0.01), '82146.12');
+        assert.equal(formatPriceStep(82146.48, 0.01), '82146.48');
+        assert.equal(formatPriceStep(82146, 0.01), '82146.00');
+        assert.equal(formatPriceStep(101.5, 0.5), '101.5');
+        assert.equal(formatPriceStep(1200, 5), '1200');
+        assert.equal(formatPriceStep(0.00001234, 0.00000001), '0.00001234');
+    });
+
+    it('writes a price by its magnitude while the host does not know the step', () => {
+        assert.equal(formatPriceStep(82146.12, null), formatPrice(82146.12));
+        assert.equal(formatPriceStep(null, 0.01), '--');
     });
 });

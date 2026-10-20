@@ -364,3 +364,15 @@ describe('active orders, read-only', () => {
         assert.ok(rows.some(cells => cells.includes('MKT')), 'a market order says so instead of showing no price');
     });
 });
+
+describe('ActiveOrdersWidget prices', () => {
+    it('writes the limit and the stop price to the step of the order\'s instrument', () => {
+        const { widget, host } = activeOrdersPanel([]);
+        host.trading.priceStep = symbol => (symbol === 'BTC/USD' ? 0.01 : null);
+
+        widget.update([{ id: 601, localId: 6, instrument: 'BTC/USD', side: 0, type: 0, quantity: 1, limitPrice: 82146.12, stopPrice: 82100.5, status: 3 }]);
+
+        assert.equal(cell(widget, '601', 'limitPrice').textContent, '82146.12');
+        assert.equal(cell(widget, '601', 'stopPrice').textContent, '82100.50');
+    });
+});
